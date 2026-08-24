@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The innermost ring. No dependencies: the whole point of the ceremony. -->
+
+</Project>

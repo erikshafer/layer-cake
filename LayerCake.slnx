@@ -1,0 +1,22 @@
+<Solution>
+  <Folder Name="/before/">
+    <Project Path="src/before/LayerCake.Domain/LayerCake.Domain.csproj" />
+    <Project Path="src/before/LayerCake.Application/LayerCake.Application.csproj" />
+    <Project Path="src/before/LayerCake.Infrastructure/LayerCake.Infrastructure.csproj" />
+    <Project Path="src/before/LayerCake.WebApi/LayerCake.WebApi.csproj" />
+  </Folder>
+  <Folder Name="/after/">
+    <Project Path="src/after/LayerCake.Slices/LayerCake.Slices.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/LayerCake.ContractTests/LayerCake.ContractTests.csproj" />
+  </Folder>
+  <Folder Name="/solution items/">
+    <File Path="README.md" />
+    <File Path="CLAUDE.md" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="docker-compose.yml" />
+    <File Path=".editorconfig" />
+  </Folder>
+</Solution>

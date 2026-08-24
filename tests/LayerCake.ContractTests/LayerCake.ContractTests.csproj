@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!-- The spine of the talk: ONE scenario suite referencing BOTH hosts.
+       Same behavior, same tests, two architectures. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\before\LayerCake.WebApi\LayerCake.WebApi.csproj" />
+    <ProjectReference Include="..\..\src\after\LayerCake.Slices\LayerCake.Slices.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Alba" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+</Project>

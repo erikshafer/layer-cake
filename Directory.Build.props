@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+    <PropertyGroup>
+        <LangVersion>14</LangVersion>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <Authors>Erik Shafer</Authors>
+        <RepositoryUrl>https://github.com/erikshafer/layer-cake</RepositoryUrl>
+    </PropertyGroup>
+    <ItemGroup>
+        <InternalsVisibleTo Include="$(AssemblyName).Tests" />
+    </ItemGroup>
+    <PropertyGroup>
+        <NoWarn>$(NoWarn);NU1507</NoWarn>
+    </PropertyGroup>
+    <ItemGroup>
+        <!-- AutoMapper 14.0.0 has a known high-severity advisory. The fixed
+             releases (15.x) are the commercial ones, and this repo deliberately
+             pins the final OSS release: that frozen-in-place state is exactly
+             what the talk demonstrates. Demo code only; suppressed knowingly. -->
+        <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-rvv3-g6hj-g44x" />
+    </ItemGroup>
+</Project>

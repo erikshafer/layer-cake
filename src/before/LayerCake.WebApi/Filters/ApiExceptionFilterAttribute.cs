@@ -1,0 +1,53 @@
+using LayerCake.Application.Common.Exceptions;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
+
+namespace LayerCake.WebApi.Filters;
+
+/// <summary>
+/// Translates Application-layer exceptions into RFC 7807 problem responses
+/// so controllers stay free of error mapping.
+/// </summary>
+public sealed class ApiExceptionFilterAttribute : ExceptionFilterAttribute
+{
+    public override void OnException(ExceptionContext context)
+    {
+        switch (context.Exception)
+        {
+            case ValidationException validationException:
+                Handle(context, new ValidationProblemDetails(validationException.Errors)
+                {
+                    Status = StatusCodes.Status400BadRequest,
+                    Title = "One or more validation errors occurred."
+                });
+                break;
+
+            case NotFoundException notFoundException:
+                Handle(context, new ProblemDetails
+                {
+                    Status = StatusCodes.Status404NotFound,
+                    Title = "The specified resource was not found.",
+                    Detail = notFoundException.Message
+                });
+                break;
+
+            case DuplicateCakeNameException duplicateCakeNameException:
+                Handle(context, new ProblemDetails
+                {
+                    Status = StatusCodes.Status409Conflict,
+                    Title = "Conflict",
+                    Detail = duplicateCakeNameException.Message
+                });
+                break;
+        }
+    }
+
+    private static void Handle(ExceptionContext context, ProblemDetails problemDetails)
+    {
+        var result = new ObjectResult(problemDetails) { StatusCode = problemDetails.Status };
+        result.ContentTypes.Add("application/problem+json");
+
+        context.Result = result;
+        context.ExceptionHandled = true;
+    }
+}

@@ -1,0 +1,23 @@
+## .NET build artifacts
+bin/
+obj/
+artifacts/
+
+## IDE
+.vs/
+.idea/
+*.user
+*.suo
+*.DotSettings.user
+
+## Test results
+TestResults/
+*.trx
+
+## OS
+.DS_Store
+Thumbs.db
+
+## Local environment
+*.local.json
+.env

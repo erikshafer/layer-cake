@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <PackageReference Include="WolverineFx.Http" />
+    <PackageReference Include="WolverineFx.Marten" />
+    <!-- Wolverine 6 moved the Roslyn runtime compiler out of core, so Dynamic
+         codegen (the dev default this demo runs everywhere, tests included)
+         needs this package; it auto-registers when referenced. A production app
+         would instead pre-generate handler code with the "codegen write" CLI
+         command, commit it, and boot with TypeLoadMode.Static so prod never
+         loads Roslyn. That is deliberately NOT done here: this repo only
+         ever runs in Development, and the regen-and-commit ritual is ceremony a
+         demo does not need. See https://wolverinefx.net/guide/codegen.html -->
+    <PackageReference Include="WolverineFx.RuntimeCompilation" />
+    <PackageReference Include="Marten" />
+    <PackageReference Include="Swashbuckle.AspNetCore" />
+  </ItemGroup>
+
+</Project>

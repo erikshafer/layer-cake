@@ -1,0 +1,56 @@
+schema: spec-driven
+
+# Project context, shown to AI when creating artifacts.
+context: |
+  LayerCake is the demo system for a KCDC 2026 conference talk (delivered
+  Sept 10-11, 2026). The talk is the deadline; when ceremony conflicts with
+  shipping the talk, shipping wins, explicitly and never silently.
+
+  The repo is a laboratory: ONE solution, TWO implementations of the identical
+  HTTP API, one shared Alba contract-test suite proving they behave the same.
+  Before twin: earnest .NET Clean Architecture (EF Core + Npgsql, MediatR,
+  AutoMapper, FluentValidation). After twin: Wolverine.Http + Marten vertical
+  slices. .NET 10 / C# 14, PostgreSQL 17, one database, schemas "before" and
+  "after". "dotnet test" green twice is the talk's most credible artifact.
+
+  CLAUDE.md is the build charter; read it before anything else. The slice
+  slate is LOCKED at three slices, built per-slice end to end in this order:
+  publish-browse-cakes, validate-coupon, place-order. Behavior is fully
+  settled in docs/slices/001-003 (contract clauses, required before-twin
+  structure, after-twin shape, scenario lists, seeds). Derive every change
+  artifact from those specs; do not re-litigate settled decisions, and route
+  surviving ambiguity to the author rather than assuming.
+
+  Spec organization: capabilities are "cakes", "coupons", and "orders". Each
+  capability covers BOTH twins plus the shared contract scenarios; the twins
+  are one capability with two implementations, never two capabilities.
+
+  Workflow: one change per slice, named slice-001-publish-browse-cakes,
+  slice-002-validate-coupon, slice-003-place-order. OpenSpec is adopted thin
+  here: task checklists and an archive trail, not re-planning.
+
+# Per-artifact rules.
+rules:
+  proposal:
+    - Keep proposals short. The "why" was decided during talk planning; link to the slice spec in docs/slices/ instead of restating it.
+    - Always include a "Non-goals" section naming what the slice fences out (see the slice spec's out-of-scope list and the charter's non-negotiables).
+  specs:
+    - Requirement statements and scenario names read as contract clauses and mirror the shared-suite scenario list in the slice's docs/slices spec, snake_case names included.
+    - Cover behavior only (HTTP surface, status codes, envelope shapes, seeds, observable side effects). Twin-internal structure stays in docs/slices and the charter, not in specs.
+  design:
+    - Create design.md only when the slice raises a genuine open question (e.g. slice 001's EF migrations vs. EnsureCreated decision). Otherwise skip it; the slice spec already is the design.
+  tasks:
+    - Order tasks per the charter's build discipline; before twin, after twin, shared contract scenarios, seeds, then verification.
+    - Every slice ends with the same two bookkeeping tasks; append the before twin's honest file list to docs/file-inventory.md, and record mid-build decisions in docs/build-log.md.
+    - Definition of done for the slice is the shared suite green on BOTH hosts (docker compose up -d first).
+
+# Per-operation guidance.
+operations:
+  apply:
+    guidance:
+      - Stay scoped to the slice being applied; out-of-scope findings become a docs/build-log.md line, never an opportunistic edit.
+      - The csharp-critter-style skill applies to after-twin and test code only; the before twin follows conventional Clean Architecture idioms on purpose.
+  archive:
+    guidance:
+      - Archive only when the shared suite is green on both hosts and the file-inventory and build-log entries for the slice exist.
+      - Summarize the archive outcome, including the slice's honest before-twin file count (a slide depends on it).

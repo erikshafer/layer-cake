@@ -1,0 +1,53 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <!-- ============================================================
+       VERSION FREEZE DISCIPLINE (see CLAUDE.md)
+       Pinned 2026-08-23 for the KCDC talk (Sept 10-11). Frozen before
+       dry-run 1. The only reason to bump after the freeze is a security
+       patch. Floors already satisfied: Marten >= 9.22.2 (tenant-ID SQL
+       injection), Wolverine >= 6.24.1 (durable inbox data-loss fixes).
+       Do NOT adopt Alba 9 (beta, any-2xx assertion default) mid-prep.
+       ============================================================ -->
+  <!-- After twin: Critter Stack 2026 line (Wolverine 6 / Marten 9) -->
+  <ItemGroup>
+    <PackageVersion Include="WolverineFx.Http" Version="6.28.1" />
+    <PackageVersion Include="WolverineFx.Marten" Version="6.28.1" />
+    <!-- Wolverine 6 no longer ships the Roslyn runtime compiler in core;
+         Dynamic codegen (the dev/demo default) throws at startup without this.
+         It auto-registers when referenced. -->
+    <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.28.1" />
+    <PackageVersion Include="Marten" Version="9.24.0" />
+    <PackageVersion Include="Marten.AspNetCore" Version="9.24.0" />
+  </ItemGroup>
+  <!-- Before twin: the earnest Clean Architecture stack. MediatR and
+       AutoMapper are DELIBERATELY pinned at their final OSS releases
+       (13.0 / 15.0 went commercial under Lucky Penny, 2025-07). This is
+       exactly where most real layered codebases are frozen, which is the
+       point; the licensing story gets one Act 2 line in the talk. -->
+  <ItemGroup>
+    <PackageVersion Include="MediatR" Version="12.5.0" />
+    <PackageVersion Include="AutoMapper" Version="14.0.0" />
+    <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.0.0" />
+    <!-- EF Core 10.0.4, not 10.0.3: the Npgsql provider's patch numbers do not
+         track EF Core's, and Npgsql 10.0.3 requires EF Core >= 10.0.4 (NU1605
+         downgrade error otherwise). -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.4" />
+    <!-- Design-time only (dotnet ef migrations); matches the EF Core pin. -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.4" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+  </ItemGroup>
+  <!-- API documentation (both twins expose Swagger UI in Development) -->
+  <ItemGroup>
+    <PackageVersion Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+  </ItemGroup>
+  <!-- Shared contract test suite: the talk's proof artifact -->
+  <ItemGroup>
+    <PackageVersion Include="Alba" Version="8.5.3" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+    <PackageVersion Include="Shouldly" Version="4.3.0" />
+  </ItemGroup>
+</Project>
