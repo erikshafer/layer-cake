@@ -77,6 +77,7 @@ The before twin follows conventional Clean Architecture idioms instead where the
 2. Stay scoped to the slice being built; no opportunistic edits elsewhere. Surfaced out-of-scope work becomes a `docs/build-log.md` line, not a change.
 3. On finishing a slice: run the suite (`docker compose up -d` first), append the honest file list to `docs/file-inventory.md`, and record any decisions made along the way in `docs/build-log.md`.
 4. There is no prompt/retro pipeline here (deliberate; the talk is the deadline). The build log is the memory between sessions.
+5. Commit messages and PR bodies are plain: no AI co-author trailers, no "generated with" footers, no tool attribution of any kind.
 
 ### OpenSpec (adopted 2026-08-24)
 
