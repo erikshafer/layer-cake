@@ -1,0 +1,28 @@
+# Tasks: slice-003-place-order
+
+Contract, structure, and scenarios: `docs/slices/003-place-order.md`. Decisions: `design.md` (repository-only baker ceremony, order-id BakerTask identity, load-once guards, stored totals, poll helper).
+
+## 1. Before twin (earnest Clean Architecture)
+
+- [x] 1.1 Implement `Domain/Entities/Order.cs` (+ `OrderLine` with snapshot `Name`, `UnitPrice`, `LineTotal`, plus `Subtotal`, `Discount`, `Total`, optional `CouponCode`, `PlacedAt`) and `Domain/Entities/BakerTask.cs` (`Id`, `OrderId`, `Summary`, `CreatedAt`); verify the Domain project builds with no dependencies on other layers
+- [x] 1.2 Implement `Application/Orders/Commands/PlaceOrder/` (command + handler + FluentValidation validator for the 400 guard) with the guard chain in contract order: validator → cake existence via `ICakeRepository` (422 listing offending ids) → coupon via the slice 002 shared service (422 carrying the failing status); handler computes totals with `MidpointRounding.ToEven`, snapshots prices, and writes the baker task inline via `IBakerTaskRepository` in the SAME transaction as the order (one `SaveChangesAsync` per design.md) with the one "imagine this line is SendGrid" comment; verify by reading the handler that no code path saves twice or skips a guard
+- [x] 1.3 Implement order/baker DTOs + AutoMapper profile (response `couponCode` absent-not-null per design.md), `Application/Orders/Queries/GetOrder/`, `Application/Baker/Queries/GetBakerTasks/` (optional `orderId` filter), and `IOrderRepository` + `IBakerTaskRepository` interfaces; verify handlers consult repositories only, no DbContext leakage into Application
+- [x] 1.4 Implement Infrastructure: `OrderConfiguration` (owned/child lines with `numeric` money columns), `BakerTaskConfiguration`, `OrderRepository`, `BakerTaskRepository`, DbContext registration, and a new EF Core migration on schema `before`; verify `Database.Migrate()` applies cleanly against the compose database
+- [x] 1.5 Implement `WebApi/Controllers/OrdersController.cs` (POST → 201 + `Location`, GET by id → 200/404) and `WebApi/Controllers/BakerController.cs` (`GET /baker/tasks` with optional `?orderId=`); verify via Swagger: happy path with and without coupon, all three guard failures with problem details, order read-back, and the baker task row appearing for a placed order
+
+## 2. After twin (Wolverine + Marten slices)
+
+- [x] 2.1 Implement `Orders/Order.cs` (+ line type, storing snapshot lines and totals per design.md) and `Orders/BakerTask.cs` (identity = order id per design.md) as plain mutable Marten documents; verify the after twin builds
+- [x] 2.2 Implement `Features/PlaceOrder.cs`: `PlaceOrder` record, `ValidateAsync` running the three guards in contract order (400 lines/quantity, 422 unknown cake ids listed, 422 via `CouponValidation.Evaluate` with the failing status in the detail) and passing the loaded cakes + coupon through to the endpoint per design.md (fallback: re-load in the endpoint, logged to build log); endpoint composes a small pure totals decide function, `Store`s the order, and RETURNS `NotifyBaker` as a cascaded value alongside the 201 response (no injected bus, no `SaveChangesAsync`; one comment naming the outbox atomicity because that is the A-Frame beat); verify via Swagger and by reading the file that the decide function has no session dependency
+- [x] 2.3 Implement `Features/NotifyBakerHandler.cs` (`NotifyBaker` record + handler storing the `BakerTask` document, idempotent by identity upsert per design.md), `Features/GetOrder.cs` (`[WolverineGet("/orders/{id}")]` with `[Entity(Required = true)]` → 200/404), and `Features/GetBakerTasks.cs` (`IQuerySession`, optional `orderId` filter); verify via Swagger: place with/without coupon, guard failures, read-back, and the baker task appearing shortly after a placement
+
+## 3. Shared contract scenarios
+
+- [x] 3.1 Extend the per-scenario-class reset to cover order and baker-task tables/documents on both twins (cake/coupon seeds already exist and are reused as-is); verify a scenario class run starts with zero orders and zero baker tasks on each twin
+- [x] 3.2 Implement the poll-until-present helper (~250 ms interval, ~5 s timeout, last body in the failure message per design.md) and the eleven shared scenarios in an abstract base class with twin subclasses (existing fixture pattern), asserting exact status codes, the money math, raw-body absence of `couponCode` when unsent, and the shared error shape via `ProblemDetailsAssertions`: `place_order_returns_201_with_totals`, `place_order_without_coupon_has_zero_discount`, `place_order_with_empty_lines_returns_400`, `place_order_with_zero_quantity_returns_400`, `place_order_with_unknown_cake_returns_422_listing_ids`, `place_order_with_valid_coupon_applies_discount_math`, `place_order_with_expired_coupon_returns_422_with_status`, `place_order_with_not_yet_active_coupon_returns_422_with_status`, `get_order_by_id_returns_200_with_same_shape`, `get_missing_order_returns_404`, `placing_order_produces_exactly_one_baker_task`; verify each runs against both hosts (22 green results)
+
+## 4. Verification and bookkeeping
+
+- [x] 4.1 Run `docker compose up -d` then `dotnet test` from clean and verify the FULL shared suite (slices 001 + 002 + 003) is green on BOTH hosts in one run (definition of done)
+- [x] 4.2 Append the before twin's honest per-slice file list and count to `docs/file-inventory.md` (a slide depends on the real number)
+- [x] 4.3 Record mid-build decisions in `docs/build-log.md`, including the design.md calls as implemented (repository-only baker ceremony, single-save transaction, order-id task identity, guard pass-through vs re-load fallback, stored totals, poll constants)

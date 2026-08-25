@@ -12,6 +12,8 @@ public interface ICakeRepository
 
     Task<IReadOnlyList<Cake>> GetAllAsync(CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<Cake>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken);
+
     Task<bool> ExistsWithNameAsync(string name, CancellationToken cancellationToken);
 
     Task AddAsync(Cake cake, CancellationToken cancellationToken);

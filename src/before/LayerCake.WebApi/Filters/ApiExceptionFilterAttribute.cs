@@ -39,6 +39,24 @@ public sealed class ApiExceptionFilterAttribute : ExceptionFilterAttribute
                     Detail = duplicateCakeNameException.Message
                 });
                 break;
+
+            case UnknownCakesException unknownCakesException:
+                Handle(context, new ProblemDetails
+                {
+                    Status = StatusCodes.Status422UnprocessableEntity,
+                    Title = "The order references unknown cakes.",
+                    Detail = unknownCakesException.Message
+                });
+                break;
+
+            case InvalidCouponException invalidCouponException:
+                Handle(context, new ProblemDetails
+                {
+                    Status = StatusCodes.Status422UnprocessableEntity,
+                    Title = "The order's coupon is not valid.",
+                    Detail = invalidCouponException.Message
+                });
+                break;
         }
     }
 

@@ -1,3 +1,4 @@
+using LayerCake.Application.Common.Interfaces;
 using LayerCake.Domain.Common;
 using LayerCake.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -7,8 +8,10 @@ namespace LayerCake.Infrastructure.Persistence;
 /// <summary>
 /// EF Core database context for the before twin. Uses the "before" schema so
 /// both twins can share one PostgreSQL database without touching each other.
+/// Doubles as the IUnitOfWork implementation: SaveChangesAsync IS the
+/// transaction boundary handlers commit through.
 /// </summary>
-public sealed class LayerCakeDbContext : DbContext
+public sealed class LayerCakeDbContext : DbContext, IUnitOfWork
 {
     public LayerCakeDbContext(DbContextOptions<LayerCakeDbContext> options)
         : base(options)
@@ -18,6 +21,10 @@ public sealed class LayerCakeDbContext : DbContext
     public DbSet<Cake> Cakes => Set<Cake>();
 
     public DbSet<Coupon> Coupons => Set<Coupon>();
+
+    public DbSet<Order> Orders => Set<Order>();
+
+    public DbSet<BakerTask> BakerTasks => Set<BakerTask>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

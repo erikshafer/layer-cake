@@ -21,6 +21,12 @@ public static class DependencyInjection
 
         services.AddScoped<ICakeRepository, CakeRepository>();
         services.AddScoped<ICouponRepository, CouponRepository>();
+        services.AddScoped<IOrderRepository, OrderRepository>();
+        services.AddScoped<IBakerTaskRepository, BakerTaskRepository>();
+
+        // The DbContext IS the unit of work; resolve the same scoped instance
+        // the repositories stage their changes into.
+        services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<LayerCakeDbContext>());
 
         services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
 
