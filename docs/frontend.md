@@ -1,6 +1,6 @@
 # Frontend: one static page, two twins
 
-**Status: GO (2026-08-25).** Talk-side decision 13 made this a fenced stretch goal ("built only at the very end"); the build fence was lifted on 2026-08-25 with all three slices archived, the suite at 52/52, and the package freeze in force. The DECK fence still stands: the talk and the slides are written as if this page does not exist, and it becomes a beat only if dry-run 1 comes in under 45 minutes with room. Nothing here may become a dependency of the deck, the suite, or CI.
+**Status: BUILT (2026-08-25, PR #3, merge `cdb580a`; acceptance walked on both twins, suite 52/52).** Talk-side decision 13 made this a fenced stretch goal ("built only at the very end"); the build fence was lifted on 2026-08-25 with all three slices archived, the suite at 52/52, and the package freeze in force. The DECK fence still stands: the talk and the slides are written as if this page does not exist, and it becomes a beat only if dry-run 1 comes in under 45 minutes with room. Nothing here may become a dependency of the deck, the suite, or CI.
 
 **Why it exists:** the two twins share one HTTP contract, and the shared Alba suite proves it. This page proves it a second way, for a human, in a browser: one file, plain `fetch`, a switch between the two backends, and the same journey behaving identically on both. It is ugly on purpose. Its whole argument is that it does not care which architecture is on the other end.
 
