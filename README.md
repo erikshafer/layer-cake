@@ -31,7 +31,7 @@ Both twins share one PostgreSQL database (`layercake`): EF Core writes to the `b
 
 This repo is a **laboratory built for a talk**, not a production system or a template. The before twin is written earnestly, the way many real .NET codebases are actually structured, because the comparison is worthless if it's a strawman. The after twin changes architecture *and* library stack at the same time; the talk owns that confounding honestly rather than pretending one variable moved.
 
-Deliberately out of scope: authentication, event sourcing, microservices, a frontend. Those are different talks. If the Marten "after" twin makes you curious about event sourcing, that refactor is one step away; see [CritterMart](https://github.com/erikshafer/crittermart) and the Critter Stack docs.
+Deliberately out of scope: authentication, event sourcing, microservices, and any frontend framework or SPA. Those are different talks. The one frontend artifact, the static demo page described in [The frontend](#the-frontend) above, stays off the critical path and is not part of the proof; the contract tests are. If the Marten "after" twin makes you curious about event sourcing, that refactor is one step away; see [CritterMart](https://github.com/erikshafer/crittermart) and the Critter Stack docs.
 
 ## The domain
 

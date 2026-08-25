@@ -21,5 +21,16 @@
     <File Path="Directory.Packages.props" />
     <File Path="docker-compose.yml" />
     <File Path=".editorconfig" />
+    <File Path="src/frontend/index.html" />
+  </Folder>
+  <Folder Name="/solution items/docs/">
+    <File Path="docs/build-log.md" />
+    <File Path="docs/file-inventory.md" />
+    <File Path="docs/frontend.md" />
+  </Folder>
+  <Folder Name="/solution items/docs/slices/">
+    <File Path="docs/slices/001-publish-browse-cakes.md" />
+    <File Path="docs/slices/002-validate-coupon.md" />
+    <File Path="docs/slices/003-place-order.md" />
   </Folder>
 </Solution>
