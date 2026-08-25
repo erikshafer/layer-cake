@@ -8,6 +8,9 @@
   <Folder Name="/after/">
     <Project Path="src/after/LayerCake.Slices/LayerCake.Slices.csproj" />
   </Folder>
+  <Folder Name="/monitor/">
+    <Project Path="src/monitor/LayerCake.CritterWatch/LayerCake.CritterWatch.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/LayerCake.ContractTests/LayerCake.ContractTests.csproj" />
   </Folder>

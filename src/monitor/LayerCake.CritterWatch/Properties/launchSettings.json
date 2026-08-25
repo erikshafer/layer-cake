@@ -5,10 +5,9 @@
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": false,
-      "applicationUrl": "http://localhost:42020",
+      "applicationUrl": "http://localhost:42030",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development",
-        "CritterWatch__Enabled": "true"
+        "ASPNETCORE_ENVIRONMENT": "Development"
       }
     }
   }

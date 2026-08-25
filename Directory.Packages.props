@@ -4,22 +4,31 @@
   </PropertyGroup>
   <!-- ============================================================
        VERSION FREEZE DISCIPLINE (see CLAUDE.md)
-       Pinned 2026-08-23 for the KCDC talk (Sept 10-11). Frozen before
+       Pinned 2026-08-25 for the KCDC talk (Sept 10-11). Frozen before
        dry-run 1. The only reason to bump after the freeze is a security
-       patch. Floors already satisfied: Marten >= 9.22.2 (tenant-ID SQL
-       injection), Wolverine >= 6.24.1 (durable inbox data-loss fixes).
+       patch. Floors already satisfied: Marten >= 9.29.0 (silent commit
+       data-loss fixes on the write path), Wolverine >= 6.24.1 (durable
+       inbox data-loss fixes).
        Do NOT adopt Alba 9 (beta, any-2xx assertion default) mid-prep.
        ============================================================ -->
   <!-- After twin: Critter Stack 2026 line (Wolverine 6 / Marten 9) -->
   <ItemGroup>
-    <PackageVersion Include="WolverineFx.Http" Version="6.28.1" />
-    <PackageVersion Include="WolverineFx.Marten" Version="6.28.1" />
+    <PackageVersion Include="WolverineFx.Http" Version="6.30.0" />
+    <PackageVersion Include="WolverineFx.Marten" Version="6.30.0" />
     <!-- Wolverine 6 no longer ships the Roslyn runtime compiler in core;
          Dynamic codegen (the dev/demo default) throws at startup without this.
          It auto-registers when referenced. -->
-    <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.28.1" />
-    <PackageVersion Include="Marten" Version="9.24.0" />
-    <PackageVersion Include="Marten.AspNetCore" Version="9.24.0" />
+    <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.30.0" />
+    <PackageVersion Include="Marten" Version="9.29.0" />
+    <PackageVersion Include="Marten.AspNetCore" Version="9.29.0" />
+    <!-- CritterWatch monitoring console (added 2026-08-25, Erik's call at the
+         upgrade-pass checkpoint). The two CritterWatch packages version-lock
+         together; 1.0.x requires Wolverine >= 6.29.1. RabbitMQ is the telemetry
+         channel between the after twin and the console; the transport package
+         tracks the Wolverine pin. -->
+    <PackageVersion Include="CritterWatch" Version="1.0.1" />
+    <PackageVersion Include="Wolverine.CritterWatch" Version="1.0.1" />
+    <PackageVersion Include="WolverineFx.RabbitMQ" Version="6.30.0" />
   </ItemGroup>
   <!-- Before twin: the earnest Clean Architecture stack. MediatR and
        AutoMapper are DELIBERATELY pinned at their final OSS releases

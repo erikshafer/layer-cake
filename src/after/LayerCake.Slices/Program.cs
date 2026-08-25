@@ -3,8 +3,10 @@ using LayerCake.Slices;
 using Marten;
 using Weasel.Core;
 using Wolverine;
+using Wolverine.CritterWatch;
 using Wolverine.Http;
 using Wolverine.Marten;
+using Wolverine.RabbitMQ;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,6 +38,23 @@ builder.Host.UseWolverine(opts =>
     opts.Discovery.IncludeAssembly(typeof(AfterTwin).Assembly);
     opts.Policies.AutoApplyTransactions();
     opts.ServiceName = "LayerCake";
+
+    // CritterWatch monitoring is opt-in via launchSettings (the live-demo run).
+    // The contract tests boot this host through Alba without the flag, so
+    // `dotnet test` never needs RabbitMQ or the console running.
+    if (builder.Configuration.GetValue<bool>("CritterWatch:Enabled"))
+    {
+        // Telemetry channel only; no conventional routing, so no accidental
+        // message surface appears on the broker.
+        opts.UseRabbitMq(new Uri(builder.Configuration.GetConnectionString("rabbitmq") ?? "amqp://localhost"))
+            .AutoProvision();
+
+        // Telemetry out to the console's well-known intake queue; control
+        // commands back on this service's private queue.
+        opts.AddCritterWatchMonitoring(
+            new Uri("rabbitmq://queue/critterwatch"),
+            new Uri("rabbitmq://queue/layercake-control"));
+    }
 });
 
 var app = builder.Build();

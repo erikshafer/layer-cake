@@ -14,6 +14,11 @@
     <PackageReference Include="WolverineFx.RuntimeCompilation" />
     <PackageReference Include="Marten" />
     <PackageReference Include="Swashbuckle.AspNetCore" />
+    <!-- CritterWatch telemetry out of this host. Wiring is gated behind
+         CritterWatch:Enabled (launchSettings only), so the contract tests
+         never need RabbitMQ running. -->
+    <PackageReference Include="Wolverine.CritterWatch" />
+    <PackageReference Include="WolverineFx.RabbitMQ" />
   </ItemGroup>
 
 </Project>
