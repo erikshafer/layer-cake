@@ -146,3 +146,16 @@ After twin (6 files created):
 After twin, files edited: none.
 
 Shared contract suite (outside both counts): OrderScenarios.cs created; TwinHosts.cs edited to reset orders and baker tasks alongside cakes and coupons.
+
+## Frontend (recorded 2026-08-25, outside both counts)
+
+Not a slice; session spec `docs/frontend.md`. The page belongs to neither twin's count.
+
+Created (1 file):
+- src/frontend/index.html (300 lines: one static page, inline CSS + JS)
+
+Twins edited (Development-only CORS for the page, nothing else):
+- src/before/LayerCake.WebApi/Program.cs (+5 lines)
+- src/after/LayerCake.Slices/Program.cs (+5 lines)
+
+Whole-twin line counts re-run (all `.cs` under `src/before` excluding `obj/` and `Persistence/Migrations/`; all `.cs` under `src/after` excluding `obj/`; raw count including blanks): before twin 1,701 (was 1,696 as of 2026-08-25), after twin 692 (was 687). The +5 on each side is exactly the CORS lines.

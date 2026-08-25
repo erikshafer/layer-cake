@@ -23,6 +23,10 @@ Run a twin live: `dotnet run --project src/before/LayerCake.WebApi` (port 42010)
 
 Both twins share one PostgreSQL database (`layercake`): EF Core writes to the `before` schema, Marten to the `after` schema. The database engine never changes between the two; only the access idiom does.
 
+### The frontend
+
+`src/frontend/index.html` is a single static page: plain HTML, inline CSS and JS, no build step. Start Postgres, run both twins, and open the file straight from disk. It walks the whole journey (browse, publish, coupon, order, baker's board) against either twin via a Before/After switch, with a wire pane showing every request and response. It exists to show the identical HTTP contract to a human in a browser; it is **not** part of the proof. The contract tests are the proof.
+
 ## What this repo is (and is not)
 
 This repo is a **laboratory built for a talk**, not a production system or a template. The before twin is written earnestly, the way many real .NET codebases are actually structured, because the comparison is worthless if it's a strawman. The after twin changes architecture *and* library stack at the same time; the talk owns that confounding honestly rather than pretending one variable moved.
