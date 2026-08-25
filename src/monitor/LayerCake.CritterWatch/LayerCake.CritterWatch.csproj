@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <!-- JasperFx license key lives in user secrets (JasperFx:LicenseKey), never in git. -->
+    <UserSecretsId>layercake-critterwatch</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CritterWatch" />
+    <PackageReference Include="WolverineFx.RabbitMQ" />
+    <!-- Same Dynamic-codegen story as the after twin: Wolverine 6 moved Roslyn
+         out of core, and this host only ever runs in Development-style demos. -->
+    <PackageReference Include="WolverineFx.RuntimeCompilation" />
+  </ItemGroup>
+
+</Project>

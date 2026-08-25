@@ -10,8 +10,26 @@ services:
       - "5432:5432"
     volumes:
       - layercake-pgdata:/var/lib/postgresql/data
+      # Creates the CritterWatch console's dedicated database (it must NOT live
+      # as a schema inside "layercake"). Runs only on first init of the volume;
+      # existing volumes need a one-off: CREATE DATABASE critterwatch;
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d layercake"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Telemetry channel between the after twin and the CritterWatch console.
+  # Only the live demo needs it; the contract tests never touch RabbitMQ.
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: layercake-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
       interval: 5s
       timeout: 5s
       retries: 5

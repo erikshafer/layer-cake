@@ -13,12 +13,12 @@ This file is the routing layer for AI sessions: the non-negotiables, the build o
 ## Commands
 
 ```
-docker compose up -d      # PostgreSQL 17 (required before dotnet test; both twins share db "layercake")
-dotnet build              # one solution, both twins
-dotnet test               # the money shot: identical scenarios, green twice
+docker compose up -d      # PostgreSQL 17 + RabbitMQ (Postgres required before dotnet test; RabbitMQ only feeds CritterWatch)
+dotnet build              # one solution, both twins + the CritterWatch console
+dotnet test               # the money shot: identical scenarios, green twice (never needs RabbitMQ or the console)
 ```
 
-Ports (live demo only; Alba self-hosts in tests): before twin `42010`, after twin `42020`. Swagger UI at `/swagger` on both in Development.
+Ports (live demo only; Alba self-hosts in tests): before twin `42010`, after twin `42020`, CritterWatch console `42030` (`src/monitor/`). Swagger UI at `/swagger` on both twins in Development. The after twin publishes CritterWatch telemetry only when `CritterWatch:Enabled` is true (set via launchSettings env var; the contract tests never set it).
 
 ---
 
@@ -115,5 +115,7 @@ Slice designs are lifted-and-simplified from CritterMart (`PublishProduct`, `Val
 - Whether the enterprise-parody display name ("ShopSphere Commerce Platform" energy) appears anywhere (slides only vs. before solution-folder display name).
 
 RESOLVED 2026-08-23 (details in `docs/slices/` and `docs/build-log.md`): error-shape parity (status + content type + reason discoverable, one shared assertion helper); two-schemas-one-database; PublishCake keeps the 409 duplicate-name guard; coupon validation is an always-200 envelope; `GET /cakes/{id}` stays.
+
+RESOLVED 2026-08-25, upgrade pass (details in `docs/build-log.md`): JasperFx pins bumped to Wolverine 6.30.0 / Marten 9.29.0 before the freeze; CritterWatch 1.0.1 ADDED at Erik's explicit call — console host in `src/monitor/`, RabbitMQ in docker-compose, monitoring opt-in so the test suite stays broker-free.
 
 RESOLVED 2026-08-23, slice 001 build (details in `docs/build-log.md`): EF Core **migrations**, not `EnsureCreated`, for the before twin (applied at startup in Development); Marten stored-JSON casing is **explicit camelCase** via `opts.UseSystemTextJsonForSerialization(casing: Casing.CamelCase)` (verified in `after.mt_doc_cake`).
