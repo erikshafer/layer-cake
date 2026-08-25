@@ -44,6 +44,10 @@ public sealed class BeforeHostFixture : IAsyncLifetime
 
         using var scope = Host.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<LayerCakeDbContext>();
+        await dbContext.BakerTasks.ExecuteDeleteAsync();
+        // Raw SQL, not ExecuteDelete: Order owns its lines in a separate
+        // table, and the FK's ON DELETE CASCADE clears them with the orders.
+        await dbContext.Database.ExecuteSqlRawAsync("""DELETE FROM "before"."Orders";""");
         await dbContext.Cakes.ExecuteDeleteAsync();
         await dbContext.Coupons.ExecuteDeleteAsync();
         await LayerCakeDbContextSeeder.SeedAsync(dbContext);

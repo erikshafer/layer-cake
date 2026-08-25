@@ -94,3 +94,55 @@ After twin, files edited (2):
 - src/after/LayerCake.Slices/Program.cs (using statement for the SeedData move)
 
 Shared contract suite (outside both counts): CouponScenarios.cs created; TwinHosts.cs edited to reset coupons alongside cakes.
+
+## 003 PlaceOrder (recorded 2026-08-25)
+
+Same conventions as 001. EF Core migration output (`AddOrders` files) excluded as generated code. `CouponStatusWire.cs` is counted here (created this slice) even though it extracts logic slice 002 wrote inline: the extraction exists because PlaceOrder became the second consumer.
+
+Before twin (26 files created):
+- src/before/LayerCake.Domain/Entities/Order.cs
+- src/before/LayerCake.Domain/Entities/OrderLine.cs
+- src/before/LayerCake.Domain/Entities/BakerTask.cs
+- src/before/LayerCake.Application/Common/Interfaces/IOrderRepository.cs
+- src/before/LayerCake.Application/Common/Interfaces/IBakerTaskRepository.cs
+- src/before/LayerCake.Application/Common/Interfaces/IUnitOfWork.cs
+- src/before/LayerCake.Application/Common/Exceptions/UnknownCakesException.cs
+- src/before/LayerCake.Application/Common/Exceptions/InvalidCouponException.cs
+- src/before/LayerCake.Application/Common/Mappings/OrderMappingProfile.cs
+- src/before/LayerCake.Application/Coupons/CouponStatusWire.cs
+- src/before/LayerCake.Application/Orders/OrderDto.cs
+- src/before/LayerCake.Application/Orders/OrderLineDto.cs
+- src/before/LayerCake.Application/Orders/Commands/PlaceOrder/PlaceOrderCommand.cs
+- src/before/LayerCake.Application/Orders/Commands/PlaceOrder/PlaceOrderCommandValidator.cs
+- src/before/LayerCake.Application/Orders/Commands/PlaceOrder/PlaceOrderCommandHandler.cs
+- src/before/LayerCake.Application/Orders/Queries/GetOrderById/GetOrderByIdQuery.cs
+- src/before/LayerCake.Application/Orders/Queries/GetOrderById/GetOrderByIdQueryHandler.cs
+- src/before/LayerCake.Application/Baker/BakerTaskDto.cs
+- src/before/LayerCake.Application/Baker/Queries/GetBakerTasks/GetBakerTasksQuery.cs
+- src/before/LayerCake.Application/Baker/Queries/GetBakerTasks/GetBakerTasksQueryHandler.cs
+- src/before/LayerCake.Infrastructure/Persistence/Configurations/OrderConfiguration.cs
+- src/before/LayerCake.Infrastructure/Persistence/Configurations/BakerTaskConfiguration.cs
+- src/before/LayerCake.Infrastructure/Repositories/OrderRepository.cs
+- src/before/LayerCake.Infrastructure/Repositories/BakerTaskRepository.cs
+- src/before/LayerCake.WebApi/Controllers/OrdersController.cs
+- src/before/LayerCake.WebApi/Controllers/BakerController.cs
+
+Before twin, scaffold/earlier-slice files edited (6):
+- src/before/LayerCake.Application/Common/Interfaces/ICakeRepository.cs (GetByIdsAsync for the existence guard)
+- src/before/LayerCake.Infrastructure/Repositories/CakeRepository.cs (GetByIdsAsync implementation)
+- src/before/LayerCake.Application/Coupons/Queries/ValidateCoupon/ValidateCouponQueryHandler.cs (uses the extracted CouponStatusWire)
+- src/before/LayerCake.Infrastructure/Persistence/LayerCakeDbContext.cs (DbSets, implements IUnitOfWork)
+- src/before/LayerCake.Infrastructure/DependencyInjection.cs (repository + unit-of-work registrations)
+- src/before/LayerCake.WebApi/Filters/ApiExceptionFilterAttribute.cs (422 mappings for unknown cakes and invalid coupon)
+
+After twin (6 files created):
+- src/after/LayerCake.Slices/Orders/Order.cs
+- src/after/LayerCake.Slices/Orders/BakerTask.cs
+- src/after/LayerCake.Slices/Features/PlaceOrder.cs
+- src/after/LayerCake.Slices/Features/NotifyBakerHandler.cs
+- src/after/LayerCake.Slices/Features/GetOrder.cs
+- src/after/LayerCake.Slices/Features/GetBakerTasks.cs
+
+After twin, files edited: none.
+
+Shared contract suite (outside both counts): OrderScenarios.cs created; TwinHosts.cs edited to reset orders and baker tasks alongside cakes and coupons.

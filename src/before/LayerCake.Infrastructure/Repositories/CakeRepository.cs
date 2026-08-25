@@ -33,6 +33,14 @@ public sealed class CakeRepository : ICakeRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Cake>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken)
+    {
+        return await _dbContext.Cakes
+            .AsNoTracking()
+            .Where(c => ids.Contains(c.Id))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<bool> ExistsWithNameAsync(string name, CancellationToken cancellationToken)
     {
         return await _dbContext.Cakes.AnyAsync(c => c.Name == name, cancellationToken);

@@ -29,20 +29,8 @@ public sealed class ValidateCouponQueryHandler : IRequestHandler<ValidateCouponQ
         return new CouponValidationDto
         {
             Code = canonicalCode,
-            Status = ToWireStatus(status),
+            Status = status.ToWireString(),
             PercentOff = status == CouponStatus.Valid ? coupon!.PercentOff : null
-        };
-    }
-
-    private static string ToWireStatus(CouponStatus status)
-    {
-        return status switch
-        {
-            CouponStatus.Invalid => "invalid",
-            CouponStatus.NotYetActive => "notYetActive",
-            CouponStatus.Expired => "expired",
-            CouponStatus.Valid => "valid",
-            _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
         };
     }
 }
