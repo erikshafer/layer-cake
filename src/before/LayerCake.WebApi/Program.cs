@@ -12,11 +12,16 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddCors();
 
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
+    // Development-only CORS for the static demo page in src/frontend/ (opened
+    // from disk, so its origin is "null"; AllowAnyOrigin covers that).
+    app.UseCors(policy => policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod().WithExposedHeaders("Location"));
+
     app.UseSwagger();
     app.UseSwaggerUI();
 

@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LayerCake - one page, two twins</title>
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body { background: #17130E; color: #ECE6DB; font: 18px/1.4 system-ui, sans-serif;
+         height: 100vh; display: flex; flex-direction: column; --accent: #E06C5E; }
+  header { display: flex; align-items: center; gap: 28px; padding: 12px 20px;
+           border-bottom: 1px solid #3A3225; flex: 0 0 auto; }
+  header .twin-name { font-size: 34px; font-weight: 700; color: var(--accent); }
+  header .twin-url { font-size: 22px; font-family: ui-monospace, Consolas, monospace; opacity: .85; }
+  .switch button { font-size: 22px; padding: 8px 22px; border: 1px solid #3A3225; cursor: pointer;
+                   background: #201A12; color: #ECE6DB; }
+  .switch button.active-before { background: #E06C5E; color: #17130E; font-weight: 700; }
+  .switch button.active-after { background: #8FBE6A; color: #17130E; font-weight: 700; }
+  #dot { display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: #555; }
+  #dot.up { background: #8FBE6A; } #dot.down { background: #E06C5E; }
+  main { flex: 1 1 auto; display: grid; grid-template-columns: 1fr 640px; gap: 0; min-height: 0; }
+  #journey { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px 16px;
+             align-content: start; overflow: hidden; }
+  section { background: #201A12; border: 1px solid #3A3225; padding: 10px 14px; }
+  section h2 { font-size: 19px; margin-bottom: 6px; color: var(--accent); }
+  #s5 { grid-column: 1 / -1; }
+  table { border-collapse: collapse; width: 100%; }
+  td, th { padding: 2px 10px 2px 0; text-align: left; vertical-align: top; }
+  .num { text-align: right; }
+  input { background: #17130E; color: #ECE6DB; border: 1px solid #3A3225; font: inherit;
+          padding: 3px 6px; width: 130px; }
+  input.qty { width: 70px; }
+  button { background: #2B2417; color: #ECE6DB; border: 1px solid #3A3225; font: inherit;
+           padding: 3px 14px; cursor: pointer; }
+  .err { color: #E06C5E; }
+  .badge { display: inline-block; padding: 2px 12px; font-weight: 700; border: 1px solid; margin-top: 4px; }
+  .badge.good { color: #8FBE6A; } .badge.bad { color: #E06C5E; }
+  .hint { font-size: 15px; opacity: .7; }
+  tr.highlight td { background: #2E2515; outline: 1px solid var(--accent); }
+  #wire { border-left: 1px solid #3A3225; padding: 12px 16px; overflow: auto; min-height: 0; }
+  #wire h2 { font-size: 19px; margin-bottom: 6px; }
+  #wire-body { font: 16px/1.45 ui-monospace, Consolas, monospace; white-space: pre-wrap;
+               word-break: break-all; }
+  a { color: var(--accent); }
+  @media (max-width: 1400px) {
+    main { grid-template-columns: 1fr; overflow: auto; }
+    #journey { grid-template-columns: 1fr; overflow: visible; }
+    #wire { border-left: none; border-top: 1px solid #3A3225; max-height: 40vh; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="switch">
+    <button id="btn-before" onclick="switchTwin('before')">Before</button><button id="btn-after" onclick="switchTwin('after')">After</button>
+  </div>
+  <div>
+    <span class="twin-name" id="twin-name">Before</span>
+    <span class="twin-url" id="twin-url">http://localhost:42010</span>
+  </div>
+  <div><span id="dot"></span> <span id="reach-text" class="err"></span></div>
+</header>
+
+<main>
+  <div id="journey">
+    <section id="s1">
+      <h2>1. Catalog <button onclick="loadCatalog()">Refresh</button></h2>
+      <div id="catalog"></div>
+    </section>
+    <section id="s3">
+      <h2>3. Check a coupon</h2>
+      <input id="coupon-code" placeholder="code">
+      <button onclick="checkCoupon()">Check</button>
+      <div id="coupon-result"></div>
+      <div class="hint">Seed codes: BDAY10, SUMMER25, HOLIDAY30, and anything else</div>
+    </section>
+    <section id="s2">
+      <h2>2. Publish a cake</h2>
+      <input id="pub-name" placeholder="name">
+      <input id="pub-desc" placeholder="description" style="width:220px">
+      <input id="pub-price" class="qty" placeholder="price">
+      <button onclick="publish()">Publish</button>
+      <div id="pub-msg"></div>
+    </section>
+    <section id="s4">
+      <h2>4. Place an order</h2>
+      <table><tbody id="order-rows"></tbody></table>
+      <input id="order-coupon" placeholder="coupon (optional)">
+      <button onclick="placeOrder()">Place order</button>
+      <div id="order-result"></div>
+    </section>
+    <section id="s5">
+      <h2>5. The baker's board <button onclick="loadBaker()">Refresh</button></h2>
+      <div id="baker-board"></div>
+      <div id="baker-msg"></div>
+    </section>
+  </div>
+  <aside id="wire">
+    <h2>The wire</h2>
+    <div id="wire-body">no request yet</div>
+  </aside>
+</main>
+
+<script>
+  'use strict';
+  const TWINS = {
+    before: { key: 'before', name: 'Before', base: 'http://localhost:42010', color: '#E06C5E' },
+    after:  { key: 'after',  name: 'After',  base: 'http://localhost:42020', color: '#8FBE6A' }
+  };
+  let twin = TWINS.before;
+  let catalog = [];
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const money = n => Number(n).toFixed(2);
+  const coral = t => '<p class="err">' + esc(t) + '</p>';
+  const unreachable = () => 'not reachable at ' + twin.base;
+  const problem = r => (r.json && (r.json.detail || r.json.title)) || ('HTTP ' + r.status);
+  const REASONS = { 200: 'OK', 201: 'Created', 400: 'Bad Request', 404: 'Not Found',
+                    405: 'Method Not Allowed', 409: 'Conflict', 415: 'Unsupported Media Type',
+                    422: 'Unprocessable Entity', 500: 'Internal Server Error' };
+
+  // The single wire helper: every request the page makes goes through here,
+  // and every request updates the wire pane. There is no second code path.
+  async function call(method, path, body) {
+    const url = twin.base + path;
+    const headers = { 'Accept': 'application/json, application/problem+json' };
+    const init = { method, headers };
+    if (body !== undefined) { headers['Content-Type'] = 'application/json'; init.body = JSON.stringify(body); }
+    const started = performance.now();
+    let r;
+    try {
+      const res = await fetch(url, init);
+      const text = await res.text();
+      let json = null;
+      try { json = JSON.parse(text); } catch { /* not JSON (e.g. /ping) */ }
+      r = { status: res.status, reason: res.statusText || REASONS[res.status] || '',
+            contentType: res.headers.get('Content-Type'), location: res.headers.get('Location'),
+            text, json, ms: Math.round(performance.now() - started) };
+    } catch {
+      r = { down: true, ms: Math.round(performance.now() - started) };
+    }
+    const out = [method + ' ' + url];
+    if (body !== undefined) out.push('', JSON.stringify(body, null, 2));
+    out.push('');
+    if (r.down) {
+      out.push(unreachable() + '  (' + r.ms + ' ms)');
+    } else {
+      out.push(r.status + ' ' + r.reason + '  (' + r.ms + ' ms)');
+      if (r.contentType) out.push('Content-Type: ' + r.contentType);
+      if (r.location) out.push('Location: ' + r.location);
+      out.push('', r.json !== null ? JSON.stringify(r.json, null, 2) : r.text);
+    }
+    $('wire-body').textContent = out.join('\n');
+    return r;
+  }
+
+  async function ping() {
+    const r = await call('GET', '/ping');
+    const up = !r.down && r.status === 200;
+    $('dot').className = up ? 'up' : 'down';
+    $('reach-text').textContent = up ? '' : unreachable();
+  }
+
+  async function loadCatalog() {
+    const r = await call('GET', '/cakes');
+    if (r.down || r.status !== 200) {
+      catalog = [];
+      $('catalog').innerHTML = coral(r.down ? unreachable() : problem(r));
+    } else {
+      catalog = r.json;
+      $('catalog').innerHTML = '<table><tbody>' + catalog.map(c =>
+        '<tr><td>' + esc(c.name) + '</td><td>' + esc(c.description) +
+        '</td><td class="num">' + money(c.price) + '</td></tr>').join('') + '</tbody></table>';
+    }
+    buildOrderRows();
+  }
+
+  // Order rows come from the catalog response, so the ids are always the
+  // active twin's own. Typed quantities survive the rebuild keyed by cake
+  // name (form-input text is the one thing that carries across a switch).
+  function buildOrderRows() {
+    const prev = {};
+    document.querySelectorAll('#order-rows input').forEach(i => { prev[i.dataset.name] = i.value; });
+    $('order-rows').innerHTML = catalog.map(c =>
+      '<tr><td>' + esc(c.name) + '</td><td class="num">' + money(c.price) +
+      '</td><td><input class="qty" type="number" placeholder="0" data-cake-id="' + c.id +
+      '" data-name="' + esc(c.name) + '" value="' + esc(prev[c.name] ?? '') + '"></td></tr>').join('');
+  }
+
+  async function publish() {
+    const body = { name: $('pub-name').value, description: $('pub-desc').value,
+                   price: Number($('pub-price').value) };
+    const r = await call('POST', '/cakes', body);
+    if (r.down) { $('pub-msg').innerHTML = coral(unreachable()); return; }
+    if (r.status === 201) {
+      $('pub-msg').innerHTML = '<p>Published ' + esc(r.json.name) + ', id ' + esc(r.json.id) +
+        '<br>Location: ' + esc(r.location) + '</p>';
+      await loadCatalog();
+    } else {
+      $('pub-msg').innerHTML = coral(problem(r));
+    }
+  }
+
+  async function checkCoupon() {
+    const code = $('coupon-code').value;
+    if (!code) return;
+    const r = await call('GET', '/coupons/' + encodeURIComponent(code));
+    if (r.down) { $('coupon-result').innerHTML = coral(unreachable()); return; }
+    if (r.status !== 200 || !r.json) { $('coupon-result').innerHTML = coral(problem(r)); return; }
+    const e = r.json;
+    $('coupon-result').innerHTML = e.status === 'valid'
+      ? '<span class="badge good">' + esc(e.code) + ' valid, ' + e.percentOff + '% off</span>'
+      : '<span class="badge bad">' + esc(e.code) + ' ' + esc(e.status) + '</span>';
+  }
+
+  // Blank quantity = not part of the order; anything typed (an explicit 0
+  // included) is sent exactly as entered. The twins own the guards; the page
+  // never pre-validates, so the 400s are one keystroke away in a demo.
+  async function placeOrder() {
+    const lines = [];
+    document.querySelectorAll('#order-rows input').forEach(i => {
+      if (i.value.trim() !== '') lines.push({ cakeId: i.dataset.cakeId, quantity: Number(i.value) });
+    });
+    const body = { lines };
+    const cc = $('order-coupon').value.trim();
+    if (cc) body.couponCode = cc;
+    const r = await call('POST', '/orders', body);
+    if (r.down) { $('order-result').innerHTML = coral(unreachable()); return; }
+    if (r.status !== 201) { $('order-result').innerHTML = coral(problem(r)); return; }
+    const o = r.json;
+    $('order-result').innerHTML = '<table><tbody>' + o.lines.map(l =>
+        '<tr><td>' + esc(l.name) + '</td><td class="num">' + l.quantity + '</td><td class="num">' +
+        money(l.unitPrice) + '</td><td class="num">' + money(l.lineTotal) + '</td></tr>').join('') +
+      '<tr><td>subtotal</td><td colspan="3" class="num">' + money(o.subtotal) + '</td></tr>' +
+      '<tr><td>discount' + (o.couponCode ? ' (' + esc(o.couponCode) + ')' : '') +
+        '</td><td colspan="3" class="num">' + money(o.discount) + '</td></tr>' +
+      '<tr><td><b>total</b></td><td colspan="3" class="num"><b>' + money(o.total) + '</b></td></tr>' +
+      '</tbody></table><p>order <a href="#" onclick="call(\'GET\', \'/orders/' + o.id +
+        '\'); return false">' + o.id + '</a></p>';
+    bakerPoll(o.id);
+  }
+
+  // Same constants as the contract suite's baker scenario: 250 ms, 5 s.
+  async function bakerPoll(orderId) {
+    const t = twin;
+    $('baker-msg').innerHTML = '<p>waiting for the baker task...</p>';
+    const deadline = Date.now() + 5000;
+    while (Date.now() < deadline) {
+      if (twin !== t) return;
+      const r = await call('GET', '/baker/tasks?orderId=' + orderId);
+      if (!r.down && r.status === 200 && Array.isArray(r.json) && r.json.length > 0) {
+        $('baker-msg').innerHTML = '';
+        await loadBaker(orderId);
+        return;
+      }
+      await new Promise(res => setTimeout(res, 250));
+    }
+    $('baker-msg').innerHTML = coral('no baker task appeared for order ' + orderId + ' within 5 seconds');
+  }
+
+  async function loadBaker(highlightId) {
+    const r = await call('GET', '/baker/tasks');
+    if (r.down || r.status !== 200) {
+      $('baker-board').innerHTML = coral(r.down ? unreachable() : problem(r));
+      return;
+    }
+    $('baker-board').innerHTML = r.json.length === 0 ? '<p class="hint">nothing to bake</p>'
+      : '<table><tbody>' + r.json.map(t =>
+          '<tr' + (t.orderId === highlightId ? ' class="highlight"' : '') + '><td>' +
+          esc(String(t.orderId).slice(0, 8)) + '</td><td>' + esc(t.summary) + '</td><td>' +
+          esc(String(t.createdAt).replace('T', ' ').slice(0, 19)) + '</td></tr>').join('') +
+        '</tbody></table>';
+  }
+
+  function switchTwin(key) {
+    if (twin.key === key) return;
+    twin = TWINS[key];
+    document.body.style.setProperty('--accent', twin.color);
+    $('twin-name').textContent = twin.name;
+    $('twin-url').textContent = twin.base;
+    $('btn-before').className = key === 'before' ? 'active-before' : '';
+    $('btn-after').className = key === 'after' ? 'active-after' : '';
+    // A switch clears every result panel; only form-input text carries over.
+    for (const id of ['pub-msg', 'coupon-result', 'order-result', 'baker-msg']) $(id).innerHTML = '';
+    $('wire-body').textContent = '';
+    refresh();
+  }
+
+  async function refresh() {
+    await ping();
+    await loadCatalog();
+    await loadBaker();
+  }
+
+  $('btn-before').className = 'active-before';
+  refresh();
+</script>
+</body>
+</html>

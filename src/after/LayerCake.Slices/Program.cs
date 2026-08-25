@@ -14,6 +14,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddWolverineHttp();
+builder.Services.AddCors();
 
 builder.Services.AddMarten(opts =>
 {
@@ -61,6 +62,10 @@ var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
+    // Development-only CORS for the static demo page in src/frontend/ (opened
+    // from disk, so its origin is "null"; AllowAnyOrigin covers that).
+    app.UseCors(policy => policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod().WithExposedHeaders("Location"));
+
     app.UseSwagger();
     app.UseSwaggerUI();
 

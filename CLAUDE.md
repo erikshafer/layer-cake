@@ -18,6 +18,8 @@ dotnet build              # one solution, both twins + the CritterWatch console
 dotnet test               # the money shot: identical scenarios, green twice (never needs RabbitMQ or the console)
 ```
 
+Frontend demo page: run both twins, then open `src/frontend/index.html` straight from disk (no build step, no server).
+
 Ports (live demo only; Alba self-hosts in tests): before twin `42010`, after twin `42020`, CritterWatch console `42030` (`src/monitor/`). Swagger UI at `/swagger` on both twins in Development. The after twin publishes CritterWatch telemetry only when `CritterWatch:Enabled` is true (set via launchSettings env var; the contract tests never set it).
 
 ---
@@ -101,11 +103,11 @@ Build **per-slice, end to end** (before + after + contract scenarios), in this o
 
 Slice designs are lifted-and-simplified from CritterMart (`PublishProduct`, `ValidateCoupon`, `PlaceOrder`), state-stored here instead of event-sourced. Coupon statuses come from date mechanics only: exists → active window → valid. "Exhausted" is out of scope (no redemption caps). The baker notification must be synchronously observable (bakers' to-do table with a read endpoint, not log tailing).
 
-**Pre-agreed fallbacks:** coupon collapses to validate-only if PlaceOrder crowds the schedule; single-feature deep dive is the emergency compression. The static single-page frontend is a fenced stretch goal; the deck must never depend on it.
+**Pre-agreed fallbacks:** coupon collapses to validate-only if PlaceOrder crowds the schedule; single-feature deep dive is the emergency compression. The static single-page frontend exists in `src/frontend/` (built 2026-08-25, spec `docs/frontend.md`); it is a demo surface only, not part of the proof, and the deck must never depend on it.
 
 ## Where detail lives
 
-- **In this repo (agent-facing, canonical for BUILD):** `docs/slices/001-003` (per-slice specs: contract, required structure, scenarios, seeds), `docs/file-inventory.md` (the honest per-slice file counts; a slide depends on it), `docs/build-log.md` (decisions made mid-build), `openspec/` (change workflow per slice; `openspec/specs/` is canonical for what is BUILT so far).
+- **In this repo (agent-facing, canonical for BUILD):** `docs/slices/001-003` (per-slice specs: contract, required structure, scenarios, seeds), `docs/frontend.md` (the static demo page's design record), `docs/file-inventory.md` (the honest per-slice file counts; a slide depends on it), `docs/build-log.md` (decisions made mid-build), `openspec/` (change workflow per slice; `openspec/specs/` is canonical for what is BUILT so far).
 - **Talk planning (canonical for the TALK, not mirrored here on purpose — narrative and slide beats stay out of the public repo):** the `presentations` repo, `how-i-gave-up-clean-architecture/` (plan.md with all locked decisions, slice-slate-gate.md, api-contract.md, jasperfx-research.md). Mirrored in the author's "Presentations & Talks" Claude project.
 - **Slice design sources:** CritterMart (`C:\Code\crittermart`), the quarry, not the vehicle.
 - **Generic Critter Stack mechanics:** the JasperFx ai-skills library (user-level, license required) and Context7 (`/jasperfx/wolverine`, `/jasperfx/marten`). This repo documents only what diverges.
