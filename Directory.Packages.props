@@ -58,5 +58,9 @@
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
+    <!-- Added 2026-09-02 (Erik's call, an addition rather than a bump): the
+         suite starts its own PostgreSQL per twin so "dotnet test" needs Docker
+         running and nothing else. Same pin as mmo-reconnect. -->
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.14.0" />
   </ItemGroup>
 </Project>

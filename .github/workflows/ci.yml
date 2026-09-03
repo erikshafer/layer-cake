@@ -9,22 +9,8 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
-    # The same PostgreSQL 17 the local docker-compose provides; both twins
-    # (schemas "before" and "after") share the one "layercake" database.
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: layercake
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d layercake"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 5
+    # No PostgreSQL service: the contract suite starts its own postgres:17
+    # per twin through Testcontainers, and the Ubuntu runner ships Docker.
 
     steps:
       - uses: actions/checkout@v5

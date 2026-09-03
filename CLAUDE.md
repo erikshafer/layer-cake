@@ -13,10 +13,12 @@ This file is the routing layer for AI sessions: the non-negotiables, the build o
 ## Commands
 
 ```
-docker compose up -d      # PostgreSQL 17 + RabbitMQ (Postgres required before dotnet test; RabbitMQ only feeds CritterWatch)
 dotnet build              # one solution, both twins + the CritterWatch console
-dotnet test               # the money shot: identical scenarios, green twice (never needs RabbitMQ or the console)
+dotnet test               # the money shot: identical scenarios, green twice (Docker running is the only prerequisite)
+docker compose up -d      # PostgreSQL 17 + RabbitMQ, for running the twins LIVE only (RabbitMQ only feeds CritterWatch)
 ```
+
+`dotnet test` starts its own PostgreSQL 17 per twin via Testcontainers (`tests/LayerCake.ContractTests/TwinHosts.cs`); it never touches the compose database, RabbitMQ, or the console.
 
 Frontend demo page: run both twins, then open `src/frontend/index.html` straight from disk (no build step, no server).
 
@@ -34,7 +36,7 @@ Ports (live demo only; Alba self-hosts in tests): before twin `42010`, after twi
 | Persistence | EF Core 10 + Npgsql, schema `before` | Marten documents, schema `after` |
 | Validation | FluentValidation via MediatR pipeline behavior | Wolverine `Validate()` / ProblemDetails guards |
 | Mapping | AutoMapper 14.0.0 (final OSS release, deliberate) | none (that is the point) |
-| Database | PostgreSQL 17 (shared docker-compose) | same database, different schema |
+| Database | PostgreSQL 17 (docker-compose live; Testcontainers under test) | same database, different schema |
 | Tests | shared Alba + xUnit + Shouldly contract suite | the same suite, same scenarios |
 
 **Version freeze:** pins live in `Directory.Packages.props` with the rationale. Frozen before dry-run 1 (week of Aug 31). Only security patches justify a bump after the freeze. Do not adopt Alba 9 (beta) before the talk.
@@ -48,7 +50,7 @@ Ports (live demo only; Alba self-hosts in tests): before twin `42010`, after twi
 3. **One deployable per twin, monolith.** No auth. No event sourcing (both twins are state-stored; Marten is used as a document store only). No frontend on the critical path.
 4. **After-twin idioms are Wolverine's, not explicit Result types.** No `IResult` mystery meat, no `OneOf<>`. Sad paths via `Validate`/`ValidateAsync` static methods returning `ProblemDetails` or `WolverineContinue.NoProblems`. Side effects and follow-on messages as return values (cascading), never an injected bus. Never call `SaveChangesAsync` in a handler; `AutoApplyTransactions` commits.
 5. **Shared logic between slices is a deliberate, visible choice.** Coupon validation is ONE shared function used by both ValidateCoupon and PlaceOrder. It is the in-repo answer to "how do slices share logic?"
-6. **Schema separation, one database.** EF Core owns `before`, Marten owns `after`, docker-compose owns PostgreSQL. The database engine never changes between twins; only the access idiom does.
+6. **Schema separation, one database.** EF Core owns `before`, Marten owns `after`, docker-compose owns PostgreSQL for the live demo (Testcontainers under test). The database engine never changes between twins; only the access idiom does.
 
 ## C# style (both twins where applicable; after twin especially)
 
@@ -77,7 +79,7 @@ The before twin follows conventional Clean Architecture idioms instead where the
 
 1. Read this file, then the slice spec in `docs/slices/` for whatever you are building. The spec owns the contract clauses, the before twin's REQUIRED structure (do not collapse its layers; do not pad it either), the after twin's expected shape, and the scenario list. The `csharp-critter-style` skill (`.claude/skills/`) auto-activates for after-twin and test code; it does NOT apply to the before twin.
 2. Stay scoped to the slice being built; no opportunistic edits elsewhere. Surfaced out-of-scope work becomes a `docs/build-log.md` line, not a change.
-3. On finishing a slice: run the suite (`docker compose up -d` first), append the honest file list to `docs/file-inventory.md`, and record any decisions made along the way in `docs/build-log.md`.
+3. On finishing a slice: run the suite (Docker running is enough), append the honest file list to `docs/file-inventory.md`, and record any decisions made along the way in `docs/build-log.md`.
 4. There is no prompt/retro pipeline here (deliberate; the talk is the deadline). The build log is the memory between sessions.
 5. Commit messages and PR bodies are plain: no AI co-author trailers, no "generated with" footers, no tool attribution of any kind.
 
@@ -119,5 +121,7 @@ Slice designs are lifted-and-simplified from CritterMart (`PublishProduct`, `Val
 RESOLVED 2026-08-23 (details in `docs/slices/` and `docs/build-log.md`): error-shape parity (status + content type + reason discoverable, one shared assertion helper); two-schemas-one-database; PublishCake keeps the 409 duplicate-name guard; coupon validation is an always-200 envelope; `GET /cakes/{id}` stays.
 
 RESOLVED 2026-08-25, upgrade pass (details in `docs/build-log.md`): JasperFx pins bumped to Wolverine 6.30.0 / Marten 9.29.0 before the freeze; CritterWatch 1.0.1 ADDED at Erik's explicit call — console host in `src/monitor/`, RabbitMQ in docker-compose, monitoring opt-in so the test suite stays broker-free.
+
+RESOLVED 2026-09-02 (details in `docs/build-log.md`): the contract suite runs on **Testcontainers** (`Testcontainers.PostgreSql` 4.14.0 ADDED at Erik's call, an addition rather than a bump): one `postgres:17` container per twin collection, so `dotnet test` needs only Docker. docker-compose remains for the live demo (twins on their ports, the frontend page, CritterWatch).
 
 RESOLVED 2026-08-23, slice 001 build (details in `docs/build-log.md`): EF Core **migrations**, not `EnsureCreated`, for the before twin (applied at startup in Development); Marten stored-JSON casing is **explicit camelCase** via `opts.UseSystemTextJsonForSerialization(casing: Casing.CamelCase)` (verified in `after.mt_doc_cake`).

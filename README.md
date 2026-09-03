@@ -14,12 +14,13 @@ Both twins expose the **identical HTTP contract**, and one shared Alba test suit
 ## Running it
 
 ```bash
-docker compose up -d   # PostgreSQL 17, plus RabbitMQ for the optional monitor (below)
 dotnet build
 dotnet test            # identical scenarios, green against both twins
 ```
 
-Run a twin live: `dotnet run --project src/before/LayerCake.WebApi` (port 42010) or `dotnet run --project src/after/LayerCake.Slices` (port 42020). Swagger UI at `/swagger` on both.
+`dotnet test` needs Docker running and nothing else: the suite starts a throwaway PostgreSQL 17 per twin through [Testcontainers](https://dotnet.testcontainers.org/), so there is no compose step and no leftover state between runs.
+
+Run a twin live: `docker compose up -d` (PostgreSQL 17, plus RabbitMQ for the optional monitor below), then `dotnet run --project src/before/LayerCake.WebApi` (port 42010) or `dotnet run --project src/after/LayerCake.Slices` (port 42020). Swagger UI at `/swagger` on both.
 
 Both twins share one PostgreSQL database (`layercake`): EF Core writes to the `before` schema, Marten to the `after` schema. The database engine never changes between the two; only the access idiom does.
 
