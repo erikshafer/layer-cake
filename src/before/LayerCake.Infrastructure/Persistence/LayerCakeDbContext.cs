@@ -37,7 +37,7 @@ public sealed class LayerCakeDbContext : DbContext, IUnitOfWork
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         // Audit stamping kept inline rather than in a SaveChanges interceptor;
-        // one entity type does not justify the extra moving part.
+        // four small entity types do not justify the extra moving part.
         foreach (var entry in ChangeTracker.Entries<BaseAuditableEntity<Guid>>())
         {
             if (entry.State == EntityState.Added)

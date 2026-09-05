@@ -100,7 +100,7 @@ Seed data is identical on both sides: three cakes (Classic Yellow, Chocolate Sto
 | Publish and browse cakes | 19 files created, 4 edited | 5 files created, 1 edited |
 | Validate coupon | 13 files created, 4 edited | 3 files created, 2 edited |
 | Place order | 26 files created, 6 edited | 6 files created, none edited |
-| Whole twin, all C# source | 1,701 lines | 692 lines |
+| Whole twin, all C# source | 1,733 lines | 699 lines |
 
 The shortest way to feel the difference is to read one feature in both. Publishing a cake in the before twin touches:
 

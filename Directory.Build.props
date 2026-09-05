@@ -8,9 +8,6 @@
         <Authors>Erik Shafer</Authors>
         <RepositoryUrl>https://github.com/erikshafer/layer-cake</RepositoryUrl>
     </PropertyGroup>
-    <ItemGroup>
-        <InternalsVisibleTo Include="$(AssemblyName).Tests" />
-    </ItemGroup>
     <PropertyGroup>
         <NoWarn>$(NoWarn);NU1507</NoWarn>
     </PropertyGroup>

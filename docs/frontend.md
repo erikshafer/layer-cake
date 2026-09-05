@@ -33,7 +33,7 @@ One input (code, sent as typed; the twins uppercase it) and a Check button. Rend
 
 ### Section 4: place an order (`POST /orders`)
 
-One row per cake in the catalog (built from the Section 1 response, so the ids are always the active twin's own): name, unit price, a quantity input defaulting to 0. An optional coupon-code input. Submit sends `{ lines: [ { cakeId, quantity } for every row with quantity > 0 ], couponCode }` with `couponCode` omitted (not null, not empty) when blank. Send the lines exactly as entered; the twins own the guards, and the page must not pre-validate (a zero-line order and a zero-quantity line are demo cases for the 400s).
+One row per cake in the catalog (built from the Section 1 response, so the ids are always the active twin's own): name, unit price, a quantity input that starts blank with a `0` placeholder. An optional coupon-code input. Submit sends `{ lines: [ { cakeId, quantity } for every row with something typed ], couponCode }` with `couponCode` omitted (not null, not empty) when blank. A blank quantity means the row is not part of the order; anything typed, an explicit 0 included, is sent exactly as entered (decision recorded in `docs/build-log.md`, 2026-08-25). Send the lines exactly as entered; the twins own the guards, and the page must not pre-validate (a zero-line order and a zero-quantity line are demo cases for the 400s).
 
 On `201`, render the receipt: each line (name, quantity, unit price, line total), subtotal, discount, total, coupon code if present, and the order id as a link that runs `GET /orders/{id}` into the wire pane. On `400` or `422`, show the problem's `detail` in coral. Then start the baker poll (Section 5).
 
