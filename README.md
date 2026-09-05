@@ -171,6 +171,8 @@ Neither side is hiding anything. The before twin does the same validation, the s
 
 `tests/LayerCake.ContractTests` is a single [Alba](https://jasperfx.github.io/alba/) + xUnit + Shouldly project. Every scenario is written once in an abstract class (`CakeScenarios`, `CouponScenarios`, `OrderScenarios`), and two sealed subclasses at the bottom of each file bind it to a host: one boots the Clean Architecture twin, one boots the vertical-slice twin. The test runner sees 27 scenarios twice, 54 runs, and every one of them must pass.
 
+A second, smaller project, `tests/LayerCake.Slices.Tests`, exists for the after twin only. It has no host, no database, and no mocks: 15 facts call the pricing function, the guard chain, the coupon rule, and the baker handler directly and inspect what they return. It is not part of the parity proof. It is the exhibit for why the vertical-slice code is cheap to test, and `dotnet test` runs it alongside the contract suite.
+
 The scenarios assert what the contract says, not what is convenient: exact status codes rather than "any 2xx", the `Location` header on creates, the raw body never containing `percentOff` unless the coupon is valid, the discount math to the cent, and that placing an order produces exactly one baker task. For that last one the suite polls the baker endpoint with a short timeout and does not know or care which twin does the work asynchronously.
 
 Each twin gets its own PostgreSQL 17 container from Testcontainers, has its schema applied (EF Core migrations on one side, Marten on the other), and is reset and reseeded per scenario class. The two twins run in parallel, and every scenario starts from the same three cakes and three coupons.

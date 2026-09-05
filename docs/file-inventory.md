@@ -163,3 +163,5 @@ Whole-twin line counts re-run (all `.cs` under `src/before` excluding `obj/` and
 Whole-twin line counts re-run 2026-09-04 (same method): before twin 1,733 (was 1,701), after twin 699 (was 692). Before +32: the seeder's coupon-window refresh (+12), the exception filter's logged 500 fallback (+19), and a reworded clock comment (+1). After +7: the Marten unique index on cake name and its comment.
 
 Whole-twin line counts re-run 2026-09-05 (same method): before twin 1,733 (unchanged), after twin 706 (was 699). After +7: `opts.Policies.UseDurableLocalQueues()` and its comment in `Program.cs`, so the cascaded `NotifyBaker` is a real outbox message (see `docs/critter-stack-audit.md`, A1). Non-blank: before 1,432 (unchanged), after 585 (was 579). Test-fixture change (`TwinHosts.cs`) is outside both counts.
+
+Whole-twin line counts re-run 2026-09-05 after Audit Tier B first pass (same method): after twin 706 raw / 585 non-blank (unchanged; the `NotifyBakerHandler` rewrite to a pure `Store<BakerTask>` return is net zero), before twin 1,733 / 1,432 (unchanged). New project `tests/LayerCake.Slices.Tests` (4 files) is a test project and belongs to neither twin's count.
