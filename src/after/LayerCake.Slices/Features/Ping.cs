@@ -3,8 +3,8 @@ using Wolverine.Http;
 namespace LayerCake.Slices.Features;
 
 /// <summary>
-/// Scaffold smoke endpoint: proves the twin hosts answer the same contract
-/// before the first real slice lands.
+/// Smoke endpoint from the scaffold, kept on purpose: the suite and the demo
+/// page use it to confirm a twin is up before touching the real routes.
 /// </summary>
 public static class PingEndpoint
 {

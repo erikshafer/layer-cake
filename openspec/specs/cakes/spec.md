@@ -32,7 +32,7 @@ Both twins SHALL expose `POST /cakes` accepting a camelCase JSON body `{ name, d
 
 ### Requirement: Browse cakes
 
-Both twins SHALL expose `GET /cakes` returning `200` with a camelCase JSON array `[ { id, name, description, price } ]`. There SHALL be no paging, filtering, or sorting parameters. The three shared seed cakes (Classic Yellow 24.00, Chocolate Stout 34.00, Lemon Chiffon 28.00) SHALL load identically into both twins (same names, descriptions, and prices; ids may differ per twin) and be idempotently re-seedable.
+Both twins SHALL expose `GET /cakes` returning `200` with a camelCase JSON array `[ { id, name, description, price, publishedAt } ]`. There SHALL be no paging, filtering, or sorting parameters. The three shared seed cakes (Classic Yellow 24.00, Chocolate Stout 34.00, Lemon Chiffon 28.00) SHALL load identically into both twins (same names, descriptions, and prices; ids may differ per twin) and be idempotently re-seedable.
 
 #### Scenario: browse_returns_seeded_cakes
 
@@ -51,7 +51,7 @@ Both twins SHALL expose `GET /cakes/{id}` returning `200` with the same item sha
 #### Scenario: get_cake_by_id_returns_200
 
 - **WHEN** a client GETs `/cakes/{id}` for a cake discovered via browse
-- **THEN** the response is exactly `200` with body `{ id, name, description, price }`
+- **THEN** the response is exactly `200` with body `{ id, name, description, price, publishedAt }`
 
 #### Scenario: get_missing_cake_returns_404
 

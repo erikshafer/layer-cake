@@ -21,7 +21,7 @@ Request:
 
 ### GET /cakes
 
-- `200`: `[ { id, name, description, price } ]`
+- `200`: `[ { id, name, description, price, publishedAt } ]`
 - No paging, no filtering, no sorting parameters. A bakery has a dozen cakes.
 
 ### GET /cakes/{id}
