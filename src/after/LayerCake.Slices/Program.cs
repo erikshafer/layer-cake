@@ -1,6 +1,8 @@
 using JasperFx;
 using LayerCake.Slices;
+using LayerCake.Slices.Cakes;
 using Marten;
+using Marten.Schema;
 using Weasel.Core;
 using Wolverine;
 using Wolverine.CritterWatch;
@@ -27,9 +29,14 @@ builder.Services.AddMarten(opts =>
     // touching each other. The database engine never changes; only the idiom.
     opts.DatabaseSchemaName = "after";
 
-    // Explicit camelCase for the stored JSON so streamed Marten results
-    // (Marten.AspNetCore) match the wire contract without re-serializing.
+    // Explicit camelCase for the stored JSON so what lands in mt_doc_* reads
+    // the same as the wire contract (the JSON is exhibit material on a slide).
     opts.UseSystemTextJsonForSerialization(casing: Casing.CamelCase);
+
+    // The before twin enforces cake-name uniqueness with an EF Core unique
+    // index; this is the Marten counterpart so the 409 guard in PublishCake is
+    // backed by the database on both twins, not just a check-then-insert.
+    opts.Schema.For<Cake>().UniqueIndex(UniqueIndexType.Computed, x => x.Name);
 })
 .IntegrateWithWolverine()
 .UseLightweightSessions();

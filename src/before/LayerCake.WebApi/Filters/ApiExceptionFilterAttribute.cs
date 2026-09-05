@@ -10,6 +10,13 @@ namespace LayerCake.WebApi.Filters;
 /// </summary>
 public sealed class ApiExceptionFilterAttribute : ExceptionFilterAttribute
 {
+    private readonly ILogger<ApiExceptionFilterAttribute> _logger;
+
+    public ApiExceptionFilterAttribute(ILogger<ApiExceptionFilterAttribute> logger)
+    {
+        _logger = logger;
+    }
+
     public override void OnException(ExceptionContext context)
     {
         switch (context.Exception)
@@ -55,6 +62,18 @@ public sealed class ApiExceptionFilterAttribute : ExceptionFilterAttribute
                     Status = StatusCodes.Status422UnprocessableEntity,
                     Title = "The order's coupon is not valid.",
                     Detail = invalidCouponException.Message
+                });
+                break;
+
+            default:
+                // Anything unmapped (a DbUpdateException from a length constraint,
+                // a lost unique-index race) still answers as problem+json rather
+                // than a bare 500. The exception goes to the log, not the body.
+                _logger.LogError(context.Exception, "Unhandled exception for {Path}", context.HttpContext.Request.Path);
+                Handle(context, new ProblemDetails
+                {
+                    Status = StatusCodes.Status500InternalServerError,
+                    Title = "An error occurred while processing your request."
                 });
                 break;
         }
