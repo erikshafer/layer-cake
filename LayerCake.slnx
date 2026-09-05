@@ -13,6 +13,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/LayerCake.ContractTests/LayerCake.ContractTests.csproj" />
+    <Project Path="tests/LayerCake.Slices.Tests/LayerCake.Slices.Tests.csproj" />
   </Folder>
   <Folder Name="/solution items/">
     <File Path="README.md" />

@@ -14,7 +14,7 @@ This file is the routing layer for AI sessions: the non-negotiables, the build o
 
 ```
 dotnet build              # one solution, both twins + the CritterWatch console
-dotnet test               # the money shot: identical scenarios, green twice (Docker running is the only prerequisite)
+dotnet test               # the money shot: identical scenarios, green twice (Docker running is the only prerequisite); also runs the after-twin-only pure-function unit tests in tests/LayerCake.Slices.Tests
 docker compose up -d      # PostgreSQL 17 + RabbitMQ, for running the twins LIVE only (RabbitMQ only feeds CritterWatch)
 ```
 

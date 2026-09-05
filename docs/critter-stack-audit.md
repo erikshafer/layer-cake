@@ -57,6 +57,8 @@ If A1 lands, A2 matters slightly more: durable local queues engage the durabilit
 
 Each item is a defensible divergence or a judgment call. Listed roughly by how much it would change what the audience sees.
 
+**Status 2026-09-05, first pass:** B1 done (`NotifyBakerHandler` returns `Store<BakerTask>`). B5 done (`tests/LayerCake.Slices.Tests`, 15 facts, no host). B9 checked: the console really does run a 6.29.1/6.30.0 Wolverine mix, but pinning down to 6.29.1 does not compile because the official quickstart's `ProcessInParallelWithNativeAcks()` is a 6.30 API; the mix is what JasperFx's own sample expects, re-verified live, reasoning on the console csproj. B2, B3, B4, B6, B7, B8, B10, B11 remain open. Details in `docs/build-log.md`.
+
 ### B1. `NotifyBakerHandler` could be a pure function
 
 Current shape injects `IDocumentSession` and calls `session.Store(...)`. The declarative-persistence skill's stated preference for a simple write is a storage-action return:

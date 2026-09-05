@@ -7,6 +7,17 @@
 
   <ItemGroup>
     <PackageReference Include="CritterWatch" />
+    <!-- Version note (audit 2026-09-05): CritterWatch 1.0.1 compiles against
+         Wolverine 6.29.1 and pulls WolverineFx.Http/.Marten/.Postgresql/.SignalR
+         at that version, while the two direct references below follow the
+         solution pin (6.30.0), so this process runs a 6.29.1/6.30.0 mix. The
+         JasperFx setup guidance says to unify inside one host; pinning DOWN to
+         6.29.1 was tried and does not compile, because the official 1.0
+         quickstart's ProcessInParallelWithNativeAcks() is a 6.30 API. The mix
+         is therefore the pairing JasperFx's own sample expects, and it is
+         verified live (console boots, ingests the after twin's telemetry).
+         Re-check with "dotnet list package" plus the include-transitive switch
+         after any pin change. -->
     <PackageReference Include="WolverineFx.RabbitMQ" />
     <!-- Same Dynamic-codegen story as the after twin: Wolverine 6 moved Roslyn
          out of core, and this host only ever runs in Development-style demos. -->
