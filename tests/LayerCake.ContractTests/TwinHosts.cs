@@ -6,6 +6,7 @@ using Marten;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
+using Wolverine;
 using Xunit;
 
 namespace LayerCake.ContractTests;
@@ -120,6 +121,17 @@ public sealed class AfterHostFixture : IAsyncLifetime
         Host = await AlbaHost.For<AfterTwin>(x =>
         {
             x.UseSetting("ConnectionStrings:Postgres", _postgres.ConnectionString);
+
+            x.ConfigureServices(services =>
+            {
+                // Solo mode: no node registration or leader election, so each
+                // sequential test host boots fast and leaves no stale node rows.
+                // Stubbing external transports is belt-and-braces (RabbitMQ is
+                // already gated behind CritterWatch:Enabled, never set here) and
+                // is safe because the after twin only uses local routing.
+                services.DisableAllExternalWolverineTransports();
+                services.RunWolverineInSoloMode();
+            });
         });
 
         var store = Host.Services.GetRequiredService<IDocumentStore>();
