@@ -6,6 +6,8 @@ Skills consulted: wolverine-http-fundamentals, wolverine-handlers-fundamentals, 
 
 Verdict in one line: the after twin is idiomatic Critter Stack code and would pass a JasperFx maintainer's glance. One claim the talk makes about it is not currently true (Tier A1). Everything else is either a two-line hardening or a judgment call worth a conversation.
 
+**Audit closed 2026-09-05.** Both Tier A items and five of the eleven Tier B items shipped across PRs #8 through #11 (durable local queues, solo-mode fixture, pure `NotifyBaker` handler, after-twin unit tests, CritterWatch version check, context-folder layout, `NotifyBaker.cs` rename, `PublishedCake`/`PlacedOrder` naming). The remaining six Tier B items are accepted divergences, each with its reason recorded in the closing status under Tier B. Nothing in this document is outstanding; the per-pass status blocks below are the change record, and `docs/build-log.md` has the detail.
+
 ---
 
 ## Tier A: act before the talk
@@ -62,6 +64,16 @@ Each item is a defensible divergence or a judgment call. Listed roughly by how m
 **Status 2026-09-05, second pass:** B3 and B4 done. `Features/` is gone; slices live in `Cakes/`, `Coupons/`, `Orders/` beside their documents with matching namespaces, `Ping.cs` at the project root, `NotifyBakerHandler.cs` renamed `NotifyBaker.cs`. Eleven redundant usings dropped (after twin 695 raw / 574 non-blank). B2, B6, B7, B8, B10, B11 remain open.
 
 **Status 2026-09-05, third pass:** B2 done. The two HTTP response records are now noun phrases, `PublishedCake` and `PlacedOrder`, so the past-tense event convention is reserved for events (of which this repo has none; `NotifyBaker` is the only message and it is a command). `Response`/`Request` suffixes were considered and rejected as a standing rule, now in CLAUDE.md. B6, B7, B8, B10, B11 remain open.
+
+**Status 2026-09-05, closing pass.** The remaining items are accepted as they stand, no code change:
+
+- **B6, inline `DateTimeOffset.UtcNow`.** Accepted. The before twin's injected `IDateTimeProvider` against the after twin's inline clock is a deliberate exhibit recorded in the build log (slice 002), and the seed windows make time control unnecessary in every test.
+- **B7, two round trips in `PlaceOrder.LoadAsync`.** Accepted. A Marten batch query would save one round trip at demo scale and cost readability on the A-Frame slide; the sequential version is the one the talk shows.
+- **B8, explicit `SeedData.ApplyAsync` over `IInitialData`.** Accepted. The switch saves one line in `Program.cs`, and the test fixture would still call the seeder explicitly after wiping.
+- **B10, unconditional `WolverineFx.RuntimeCompilation` reference.** Accepted. The repo only runs in Development; the csproj comment and the 2026-08-23 build-log entry already pre-answer the production question.
+- **B11, the baker-task polling loop.** Accepted as compliant. It is the skill's own escape hatch (deadline poll, reason commented) because the shared suite cannot use `ExecuteAndWaitAsync` against the before twin. An after-only tracked-session test remains an option for a contrast slide, not a gap.
+
+Also flagged during B2 and left alone: `BakerTaskItem` in `GetBakerTasks.cs` carries an `Item` suffix. Rename to a noun such as `BakerTodo` if it ever reaches a slide.
 
 ### B1. `NotifyBakerHandler` could be a pure function
 

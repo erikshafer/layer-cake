@@ -28,6 +28,7 @@
     <File Path="docs/build-log.md" />
     <File Path="docs/file-inventory.md" />
     <File Path="docs/frontend.md" />
+    <File Path="docs/critter-stack-audit.md" />
   </Folder>
   <Folder Name="/solution items/docs/slices/">
     <File Path="docs/slices/001-publish-browse-cakes.md" />
