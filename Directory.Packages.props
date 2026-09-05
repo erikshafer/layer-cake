@@ -20,7 +20,6 @@
          It auto-registers when referenced. -->
     <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.30.0" />
     <PackageVersion Include="Marten" Version="9.29.0" />
-    <PackageVersion Include="Marten.AspNetCore" Version="9.29.0" />
     <!-- CritterWatch monitoring console (added 2026-08-25, Erik's call at the
          upgrade-pass checkpoint). The two CritterWatch packages version-lock
          together; 1.0.x requires Wolverine >= 6.29.1. RabbitMQ is the telemetry

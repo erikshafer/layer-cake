@@ -42,7 +42,7 @@ rules:
   tasks:
     - Order tasks per the charter's build discipline; before twin, after twin, shared contract scenarios, seeds, then verification.
     - Every slice ends with the same two bookkeeping tasks; append the before twin's honest file list to docs/file-inventory.md, and record mid-build decisions in docs/build-log.md.
-    - Definition of done for the slice is the shared suite green on BOTH hosts (docker compose up -d first).
+    - Definition of done for the slice is the shared suite green on BOTH hosts (`dotnet test` with Docker running; the suite starts its own PostgreSQL through Testcontainers).
 
 # Per-operation guidance.
 operations:
