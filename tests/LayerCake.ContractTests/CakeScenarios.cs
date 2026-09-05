@@ -1,5 +1,9 @@
 using System.Text.Json;
 using Alba;
+using LayerCake.Infrastructure.Persistence;
+using Marten;
+using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 using Shouldly;
 using Xunit;
 
@@ -16,6 +20,13 @@ public abstract class CakeScenarios
 {
     protected abstract IAlbaHost Host { get; }
 
+    /// <summary>
+    /// Writes a cake straight to the twin's database, skipping the HTTP
+    /// endpoint and its duplicate-name check, so the scenario below can
+    /// prove the database itself backs the rule.
+    /// </summary>
+    protected abstract Task InsertCakeDirectlyAsync(string name);
+
     private static readonly JsonSerializerOptions Json = JsonSerializerOptions.Web;
 
     private sealed record CakeItem(Guid Id, string Name, string Description, decimal Price, DateTimeOffset PublishedAt);
@@ -30,6 +41,21 @@ public abstract class CakeScenarios
 
         var body = await result.ReadAsTextAsync();
         return JsonSerializer.Deserialize<List<CakeItem>>(body, Json)!;
+    }
+
+    private static PostgresException? FindPostgresException(Exception? exception)
+    {
+        while (exception is not null)
+        {
+            if (exception is PostgresException postgres)
+            {
+                return postgres;
+            }
+
+            exception = exception.InnerException;
+        }
+
+        return null;
     }
 
     [Fact]
@@ -95,6 +121,23 @@ public abstract class CakeScenarios
         });
 
         await result.ShouldBeProblem(409, "Chocolate Stout");
+    }
+
+    [Fact]
+    public async Task database_refuses_duplicate_cake_name_behind_the_api()
+    {
+        // The 409 above comes from an application check that runs before the
+        // insert. Under a race two requests can both pass it, so each twin
+        // also carries a unique index (EF Core's IX_Cakes_Name, Marten's
+        // mt_doc_cake_uidx_name). Skip the endpoint and hit the database.
+        var exception = await Should.ThrowAsync<Exception>(() => InsertCakeDirectlyAsync("Chocolate Stout"));
+
+        // Marten and EF Core wrap the failure differently; the PostgreSQL
+        // unique-violation error underneath is the shared contract.
+        var postgres = FindPostgresException(exception);
+
+        postgres.ShouldNotBeNull();
+        postgres.SqlState.ShouldBe(PostgresErrorCodes.UniqueViolation);
     }
 
     [Fact]
@@ -168,6 +211,25 @@ public sealed class BeforeTwinCakes : CakeScenarios, IClassFixture<BeforeHostFix
     }
 
     protected override IAlbaHost Host => _fixture.Host;
+
+    protected override async Task InsertCakeDirectlyAsync(string name)
+    {
+        // The DbContext, not the repository: the handler's ExistsWithNameAsync
+        // check lives beside the repository, and this must bypass it.
+        using var scope = Host.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<LayerCakeDbContext>();
+
+        dbContext.Cakes.Add(new LayerCake.Domain.Entities.Cake
+        {
+            Id = Guid.NewGuid(),
+            Name = name,
+            Description = "Direct insert",
+            Price = 1.00m,
+            PublishedAt = DateTimeOffset.UtcNow
+        });
+
+        await dbContext.SaveChangesAsync();
+    }
 }
 
 [Collection(AfterTwinCollection.Name)]
@@ -181,4 +243,23 @@ public sealed class AfterTwinCakes : CakeScenarios, IClassFixture<AfterHostFixtu
     }
 
     protected override IAlbaHost Host => _fixture.Host;
+
+    protected override async Task InsertCakeDirectlyAsync(string name)
+    {
+        // A plain session outside any Wolverine handler, so ValidateAsync
+        // never runs and only the unique index stands in the way.
+        var store = Host.Services.GetRequiredService<IDocumentStore>();
+        await using var session = store.LightweightSession();
+
+        session.Store(new LayerCake.Slices.Cakes.Cake
+        {
+            Id = Guid.NewGuid(),
+            Name = name,
+            Description = "Direct insert",
+            Price = 1.00m,
+            PublishedAt = DateTimeOffset.UtcNow
+        });
+
+        await session.SaveChangesAsync();
+    }
 }
