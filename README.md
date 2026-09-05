@@ -146,7 +146,7 @@ public static class PublishCakeEndpoint
     }
 
     [WolverinePost("/cakes")]
-    public static CakePublished Post(PublishCake command, IDocumentSession session)
+    public static PublishedCake Post(PublishCake command, IDocumentSession session)
     {
         var cake = new Cake
         {
@@ -160,7 +160,7 @@ public static class PublishCakeEndpoint
         // AutoApplyTransactions commits this; no SaveChangesAsync in handlers.
         session.Store(cake);
 
-        return new CakePublished(cake.Id, cake.Name, cake.Description, cake.Price, cake.PublishedAt);
+        return new PublishedCake(cake.Id, cake.Name, cake.Description, cake.Price, cake.PublishedAt);
     }
 }
 ```

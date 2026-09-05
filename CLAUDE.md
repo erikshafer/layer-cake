@@ -57,7 +57,7 @@ Ports (live demo only; Alba self-hosts in tests): before twin `42010`, after twi
 Write C# a JasperFx maintainer would recognize. Distilled from the author's `csharp-critter-style` skill (mmo-reconnect) and CritterStackSamples:
 
 - One command + its validator + its endpoint per file, named after the command (`PublishCake.cs`).
-- Commands verb-first imperative records (`PublishCake`); events past-tense (`CakePublished`); endpoint classes `<VerbNoun>Endpoint`, static, with static methods.
+- Commands verb-first imperative records (`PublishCake`, `NotifyBaker`); events, if any ever exist here, past-tense (`CakePublished`); HTTP response bodies are noun phrases (`PublishedCake`, `PlacedOrder`) so a tuple like `(PlacedOrder, NotifyBaker)` reads as response-plus-command at a glance. **Never suffix a type with a role word such as `Response`, `Request`, `Event`, or `Message`** when it can be avoided; name the type for what it is (Erik's call, 2026-09-05: without the layers, the labels are not needed). Endpoint classes `<VerbNoun>Endpoint`, static, with static methods.
 - Marten documents: plain mutable classes with `{ get; set; }`, never records. Commands/queries: positional records.
 - Inject `IDocumentSession`/`IQuerySession` as method parameters, not constructors. `IQuerySession` for pure reads.
 - File-scoped namespaces, top-level `Program.cs`, Allman braces, `var` when apparent, collection expressions for empty defaults, no `#region`, no primary constructors on handler classes.
