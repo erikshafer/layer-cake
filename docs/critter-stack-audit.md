@@ -61,6 +61,8 @@ Each item is a defensible divergence or a judgment call. Listed roughly by how m
 
 **Status 2026-09-05, second pass:** B3 and B4 done. `Features/` is gone; slices live in `Cakes/`, `Coupons/`, `Orders/` beside their documents with matching namespaces, `Ping.cs` at the project root, `NotifyBakerHandler.cs` renamed `NotifyBaker.cs`. Eleven redundant usings dropped (after twin 695 raw / 574 non-blank). B2, B6, B7, B8, B10, B11 remain open.
 
+**Status 2026-09-05, third pass:** B2 done. The two HTTP response records are now noun phrases, `PublishedCake` and `PlacedOrder`, so the past-tense event convention is reserved for events (of which this repo has none; `NotifyBaker` is the only message and it is a command). `Response`/`Request` suffixes were considered and rejected as a standing rule, now in CLAUDE.md. B6, B7, B8, B10, B11 remain open.
+
 ### B1. `NotifyBakerHandler` could be a pure function
 
 Current shape injects `IDocumentSession` and calls `session.Store(...)`. The declarative-persistence skill's stated preference for a simple write is a storage-action return:

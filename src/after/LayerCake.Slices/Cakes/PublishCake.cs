@@ -13,11 +13,11 @@ public record PublishCake(string? Name, string? Description, decimal Price);
 /// type write its own status code and Location header, like Wolverine's
 /// CreationResponse but without serializing an extra url field into the body.
 /// </summary>
-public record CakePublished(Guid Id, string Name, string Description, decimal Price, DateTimeOffset PublishedAt)
+public record PublishedCake(Guid Id, string Name, string Description, decimal Price, DateTimeOffset PublishedAt)
     : IHttpAware
 {
     public static void PopulateMetadata(MethodInfo method, EndpointBuilder builder)
-        => builder.Metadata.Add(new ProducesResponseTypeMetadata(201, typeof(CakePublished), ["application/json"]));
+        => builder.Metadata.Add(new ProducesResponseTypeMetadata(201, typeof(PublishedCake), ["application/json"]));
 
     void IHttpAware.Apply(HttpContext context)
     {
@@ -54,7 +54,7 @@ public static class PublishCakeEndpoint
     }
 
     [WolverinePost("/cakes")]
-    public static CakePublished Post(PublishCake command, IDocumentSession session)
+    public static PublishedCake Post(PublishCake command, IDocumentSession session)
     {
         var cake = new Cake
         {
@@ -68,6 +68,6 @@ public static class PublishCakeEndpoint
         // AutoApplyTransactions commits this; no SaveChangesAsync in handlers.
         session.Store(cake);
 
-        return new CakePublished(cake.Id, cake.Name, cake.Description, cake.Price, cake.PublishedAt);
+        return new PublishedCake(cake.Id, cake.Name, cake.Description, cake.Price, cake.PublishedAt);
     }
 }

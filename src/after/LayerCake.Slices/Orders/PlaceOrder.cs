@@ -23,9 +23,9 @@ public record PlaceOrderData(IReadOnlyList<Cake> Cakes, Coupon? Coupon);
 /// <summary>
 /// 201 response for a freshly placed order, mirroring the stored document.
 /// IHttpAware writes the status code and Location header itself (same
-/// pattern as CakePublished in slice 001).
+/// pattern as PublishedCake in slice 001).
 /// </summary>
-public record OrderPlaced(
+public record PlacedOrder(
     Guid Id,
     List<OrderLine> Lines,
     decimal Subtotal,
@@ -35,11 +35,11 @@ public record OrderPlaced(
     string? CouponCode,
     DateTimeOffset PlacedAt) : IHttpAware
 {
-    public static OrderPlaced From(Order order)
+    public static PlacedOrder From(Order order)
         => new(order.Id, order.Lines, order.Subtotal, order.Discount, order.Total, order.CouponCode, order.PlacedAt);
 
     public static void PopulateMetadata(MethodInfo method, EndpointBuilder builder)
-        => builder.Metadata.Add(new ProducesResponseTypeMetadata(201, typeof(OrderPlaced), ["application/json"]));
+        => builder.Metadata.Add(new ProducesResponseTypeMetadata(201, typeof(PlacedOrder), ["application/json"]));
 
     void IHttpAware.Apply(HttpContext context)
     {
@@ -123,7 +123,7 @@ public static class PlaceOrderEndpoint
     }
 
     [WolverinePost("/orders")]
-    public static (OrderPlaced, NotifyBaker) Post(PlaceOrder command, PlaceOrderData data, IDocumentSession session)
+    public static (PlacedOrder, NotifyBaker) Post(PlaceOrder command, PlaceOrderData data, IDocumentSession session)
     {
         var order = Decide(command.Lines!, data.Cakes, data.Coupon, DateTimeOffset.UtcNow);
 
@@ -135,7 +135,7 @@ public static class PlaceOrderEndpoint
         // baker task, no baker task without an order.
         var summary = string.Join(", ", order.Lines.Select(l => $"{l.Quantity}x {l.Name}"));
 
-        return (OrderPlaced.From(order), new NotifyBaker(order.Id, summary));
+        return (PlacedOrder.From(order), new NotifyBaker(order.Id, summary));
     }
 
     // The whole pricing model, pure: lines + cakes + optional coupon in,
