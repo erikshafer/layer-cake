@@ -31,6 +31,9 @@ public static class LayerCakeDbContextSeeder
 
         // Coupon windows are relative to now (±1 year, ±1 day) so the seeded
         // statuses (valid, expired, notYetActive) never rot with the calendar.
+        // Existing coupons get their windows refreshed on every startup; otherwise
+        // a database seeded days earlier would drift (HOLIDAY30 would quietly turn
+        // valid) and disagree with the after twin, which upserts on every run.
         var now = DateTimeOffset.UtcNow;
 
         Coupon[] couponSeeds =
@@ -42,10 +45,19 @@ public static class LayerCakeDbContextSeeder
 
         foreach (var seed in couponSeeds)
         {
-            if (!await dbContext.Coupons.AnyAsync(c => c.Code == seed.Code, cancellationToken))
+            var existing = await dbContext.Coupons
+                .SingleOrDefaultAsync(c => c.Code == seed.Code, cancellationToken);
+
+            if (existing is null)
             {
                 seed.Id = Guid.NewGuid();
                 dbContext.Coupons.Add(seed);
+            }
+            else
+            {
+                existing.PercentOff = seed.PercentOff;
+                existing.StartsAt = seed.StartsAt;
+                existing.ExpiresAt = seed.ExpiresAt;
             }
         }
 
