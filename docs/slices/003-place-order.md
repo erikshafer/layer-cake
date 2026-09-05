@@ -62,10 +62,10 @@ Same earnestness rules as slice 001. Expected elements: `Domain/Entities/Order.c
 
 ## After twin — expected shape
 
-- `Features/PlaceOrder.cs`: `PlaceOrder` record + static endpoint. Guards as `Validate`/`ValidateAsync` returning `ProblemDetails` / `WolverineContinue.NoProblems`, in the contract's order, reusing `CouponValidation` from 002. The endpoint method stays pure-ish: compute totals (ideally a small pure decide function that slides can show alone), `Store` the `Order` document, and RETURN the `NotifyBaker` message as a cascaded value (tuple with the response). Never send via an injected bus; never `SaveChangesAsync`. The outbox (Marten integration + `AutoApplyTransactions`) makes store-and-send atomic; say so in one comment, because that is the A-Frame beat.
-- `Features/NotifyBakerHandler.cs`: `NotifyBaker` record + handler that stores the `BakerTask` document.
-- `Features/GetOrder.cs`: `[WolverineGet("/orders/{id}")]` with `[Entity(Required = true)]`.
-- `Features/GetBakerTasks.cs`: `IQuerySession` read with the optional filter.
+- `Orders/PlaceOrder.cs`: `PlaceOrder` record + static endpoint. Guards as `Validate`/`ValidateAsync` returning `ProblemDetails` / `WolverineContinue.NoProblems`, in the contract's order, reusing `CouponValidation` from 002. The endpoint method stays pure-ish: compute totals (ideally a small pure decide function that slides can show alone), `Store` the `Order` document, and RETURN the `NotifyBaker` message as a cascaded value (tuple with the response). Never send via an injected bus; never `SaveChangesAsync`. The outbox (Marten integration + `AutoApplyTransactions`) makes store-and-send atomic; say so in one comment, because that is the A-Frame beat.
+- `Orders/NotifyBaker.cs`: `NotifyBaker` record + handler that stores the `BakerTask` document.
+- `Orders/GetOrder.cs`: `[WolverineGet("/orders/{id}")]` with `[Entity(Required = true)]`.
+- `Orders/GetBakerTasks.cs`: `IQuerySession` read with the optional filter.
 - Documents: `Orders/Order.cs` (+ line type), `Orders/BakerTask.cs`, mutable classes.
 
 ## Shared contract scenarios

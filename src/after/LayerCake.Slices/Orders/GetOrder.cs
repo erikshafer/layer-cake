@@ -1,8 +1,7 @@
-using LayerCake.Slices.Orders;
 using Wolverine.Http;
 using Wolverine.Persistence;
 
-namespace LayerCake.Slices.Features;
+namespace LayerCake.Slices.Orders;
 
 public static class GetOrderEndpoint
 {

@@ -50,9 +50,9 @@ Before twin, scaffold files edited (4):
 After twin (5 files created):
 - src/after/LayerCake.Slices/Cakes/Cake.cs
 - src/after/LayerCake.Slices/Cakes/SeedData.cs (moved to the project root in slice 002; see below)
-- src/after/LayerCake.Slices/Features/PublishCake.cs
-- src/after/LayerCake.Slices/Features/BrowseCakes.cs
-- src/after/LayerCake.Slices/Features/GetCake.cs
+- src/after/LayerCake.Slices/Cakes/PublishCake.cs
+- src/after/LayerCake.Slices/Cakes/BrowseCakes.cs
+- src/after/LayerCake.Slices/Cakes/GetCake.cs
 
 After twin, scaffold files edited (1):
 - src/after/LayerCake.Slices/Program.cs (explicit camelCase serialization, seed on startup)
@@ -86,8 +86,8 @@ Before twin, scaffold files edited (4):
 
 After twin (3 files created):
 - src/after/LayerCake.Slices/Coupons/Coupon.cs
-- src/after/LayerCake.Slices/Features/Coupons/CouponValidation.cs
-- src/after/LayerCake.Slices/Features/ValidateCoupon.cs
+- src/after/LayerCake.Slices/Coupons/CouponValidation.cs
+- src/after/LayerCake.Slices/Coupons/ValidateCoupon.cs
 
 After twin, files edited (2):
 - src/after/LayerCake.Slices/SeedData.cs (moved from Cakes/ to project root and extended: it now seeds two modules)
@@ -138,10 +138,10 @@ Before twin, scaffold/earlier-slice files edited (6):
 After twin (6 files created):
 - src/after/LayerCake.Slices/Orders/Order.cs
 - src/after/LayerCake.Slices/Orders/BakerTask.cs
-- src/after/LayerCake.Slices/Features/PlaceOrder.cs
-- src/after/LayerCake.Slices/Features/NotifyBakerHandler.cs
-- src/after/LayerCake.Slices/Features/GetOrder.cs
-- src/after/LayerCake.Slices/Features/GetBakerTasks.cs
+- src/after/LayerCake.Slices/Orders/PlaceOrder.cs
+- src/after/LayerCake.Slices/Orders/NotifyBaker.cs
+- src/after/LayerCake.Slices/Orders/GetOrder.cs
+- src/after/LayerCake.Slices/Orders/GetBakerTasks.cs
 
 After twin, files edited: none.
 
@@ -165,3 +165,5 @@ Whole-twin line counts re-run 2026-09-04 (same method): before twin 1,733 (was 1
 Whole-twin line counts re-run 2026-09-05 (same method): before twin 1,733 (unchanged), after twin 706 (was 699). After +7: `opts.Policies.UseDurableLocalQueues()` and its comment in `Program.cs`, so the cascaded `NotifyBaker` is a real outbox message (see `docs/critter-stack-audit.md`, A1). Non-blank: before 1,432 (unchanged), after 585 (was 579). Test-fixture change (`TwinHosts.cs`) is outside both counts.
 
 Whole-twin line counts re-run 2026-09-05 after Audit Tier B first pass (same method): after twin 706 raw / 585 non-blank (unchanged; the `NotifyBakerHandler` rewrite to a pure `Store<BakerTask>` return is net zero), before twin 1,733 / 1,432 (unchanged). New project `tests/LayerCake.Slices.Tests` (4 files) is a test project and belongs to neither twin's count.
+
+Whole-twin line counts re-run 2026-09-05 after Audit Tier B second pass (same method): after twin 695 raw / 574 non-blank (was 706 / 585). The -11 is exactly the `using` lines made redundant when the slices moved from `Features/` into `Cakes/`, `Coupons/`, `Orders/` and took those namespaces. The per-slice paths above were rewritten to the new locations in the same change; file count per slice is unchanged. Before twin 1,733 / 1,432 (unchanged).

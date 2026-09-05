@@ -1,6 +1,6 @@
 using LayerCake.Slices.Cakes;
 using LayerCake.Slices.Coupons;
-using LayerCake.Slices.Features;
+using LayerCake.Slices.Orders;
 using Shouldly;
 using Wolverine.Http;
 using Xunit;

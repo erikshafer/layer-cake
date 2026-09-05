@@ -1,7 +1,6 @@
 using System.Text.Json.Serialization;
-using LayerCake.Slices.Coupons;
 
-namespace LayerCake.Slices.Features.Coupons;
+namespace LayerCake.Slices.Coupons;
 
 /// <summary>
 /// The four possible answers to "is this coupon any good right now?".

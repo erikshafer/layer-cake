@@ -1,11 +1,10 @@
 using System.Reflection;
-using LayerCake.Slices.Cakes;
 using Marten;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Mvc;
 using Wolverine.Http;
 
-namespace LayerCake.Slices.Features;
+namespace LayerCake.Slices.Cakes;
 
 public record PublishCake(string? Name, string? Description, decimal Price);
 

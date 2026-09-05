@@ -1,10 +1,8 @@
 using System.Text.Json.Serialization;
-using LayerCake.Slices.Coupons;
-using LayerCake.Slices.Features.Coupons;
 using Marten;
 using Wolverine.Http;
 
-namespace LayerCake.Slices.Features;
+namespace LayerCake.Slices.Coupons;
 
 /// <summary>
 /// The always-200 discriminated envelope. percentOff appears only when the
