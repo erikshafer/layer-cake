@@ -1,5 +1,4 @@
 using LayerCake.Slices.Coupons;
-using LayerCake.Slices.Features.Coupons;
 using Shouldly;
 using Xunit;
 

@@ -1,7 +1,6 @@
-using LayerCake.Slices.Orders;
 using Wolverine.Persistence;
 
-namespace LayerCake.Slices.Features;
+namespace LayerCake.Slices.Orders;
 
 public record NotifyBaker(Guid OrderId, string Summary);
 

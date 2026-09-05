@@ -3,14 +3,12 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using LayerCake.Slices.Cakes;
 using LayerCake.Slices.Coupons;
-using LayerCake.Slices.Features.Coupons;
-using LayerCake.Slices.Orders;
 using Marten;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Mvc;
 using Wolverine.Http;
 
-namespace LayerCake.Slices.Features;
+namespace LayerCake.Slices.Orders;
 
 public record PlaceOrder(List<PlaceOrderLine>? Lines, string? CouponCode);
 

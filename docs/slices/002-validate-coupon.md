@@ -29,7 +29,7 @@ No coupon-definition endpoint. Coupons enter the system via seed data only.
 
 ONE function evaluates a coupon to its status. Two call sites: this endpoint and PlaceOrder's guard chain (003). It must be deliberately, visibly shared, not duplicated and not buried:
 
-- After twin: e.g., `Features/Coupons/CouponValidation.cs`, a small pure static function `(Coupon?, DateTimeOffset now) -> CouponStatus`. The endpoint and the PlaceOrder guard both call it. Pure and clock-parameterized so tests need no time mocking.
+- After twin: e.g., `Coupons/CouponValidation.cs`, a small pure static function `(Coupon?, DateTimeOffset now) -> CouponStatus`. The endpoint and the PlaceOrder guard both call it. Pure and clock-parameterized so tests need no time mocking.
 - Before twin: the idiomatic equivalent, e.g., a `CouponService`/domain service consulted by both the query handler and (later) the order command handler, behind its interface, with the same status enum.
 
 ## Before twin — REQUIRED structure
@@ -38,7 +38,7 @@ Same earnestness rules as slice 001 (see its anti-shortcut list). Expected eleme
 
 ## After twin — expected shape
 
-- `Features/ValidateCoupon.cs`: `[WolverineGet("/coupons/{code}")]`, `IQuerySession`, calls the shared function, returns the envelope record.
+- `Coupons/ValidateCoupon.cs`: `[WolverineGet("/coupons/{code}")]`, `IQuerySession`, calls the shared function, returns the envelope record.
 - `Coupons/Coupon.cs`: Marten document, mutable class: `Code` (identity, uppercase), `PercentOff`, `StartsAt`, `ExpiresAt`.
 
 ## Shared contract scenarios

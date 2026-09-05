@@ -1,4 +1,3 @@
-using LayerCake.Slices.Features;
 using LayerCake.Slices.Orders;
 using Shouldly;
 using Wolverine.Persistence;

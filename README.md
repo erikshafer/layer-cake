@@ -120,7 +120,7 @@ WebApi/Controllers/CakesController.cs
 WebApi/Filters/ApiExceptionFilterAttribute.cs
 ```
 
-And in the after twin it is `src/after/LayerCake.Slices/Features/PublishCake.cs`, shown here in full apart from the usings and the 201 response record:
+And in the after twin it is `src/after/LayerCake.Slices/Cakes/PublishCake.cs`, shown here in full apart from the usings and the 201 response record:
 
 ```csharp
 public record PublishCake(string? Name, string? Description, decimal Price);
@@ -218,9 +218,10 @@ src/
     LayerCake.WebApi/                controllers, exception filter, Program.cs (port 42010)
   after/
     LayerCake.Slices/                the vertical-slice twin (port 42020)
-      Features/                      one file per feature: PublishCake.cs, ValidateCoupon.cs, PlaceOrder.cs, ...
-      Cakes/ Coupons/ Orders/        Marten documents
-      SeedData.cs, Program.cs
+      Cakes/                         Cake.cs (the Marten document) plus one file per feature: PublishCake.cs, BrowseCakes.cs, GetCake.cs
+      Coupons/                       Coupon.cs, CouponValidation.cs (THE shared rule), ValidateCoupon.cs
+      Orders/                        Order.cs, BakerTask.cs, PlaceOrder.cs, NotifyBaker.cs, GetOrder.cs, GetBakerTasks.cs
+      Ping.cs, SeedData.cs, Program.cs
   frontend/index.html                the static demo page
   monitor/LayerCake.CritterWatch/    the optional monitoring console (port 42030)
 tests/

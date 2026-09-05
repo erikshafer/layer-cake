@@ -1,8 +1,7 @@
-using LayerCake.Slices.Cakes;
 using Wolverine.Http;
 using Wolverine.Persistence;
 
-namespace LayerCake.Slices.Features;
+namespace LayerCake.Slices.Cakes;
 
 public static class GetCakeEndpoint
 {

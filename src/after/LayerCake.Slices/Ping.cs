@@ -1,6 +1,6 @@
 using Wolverine.Http;
 
-namespace LayerCake.Slices.Features;
+namespace LayerCake.Slices;
 
 /// <summary>
 /// Smoke endpoint from the scaffold, kept on purpose: the suite and the demo

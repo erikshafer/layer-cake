@@ -56,9 +56,9 @@ When done, append the actual file list and count to `docs/file-inventory.md`.
 
 ## After twin — expected shape
 
-- `Features/PublishCake.cs`: `PublishCake` positional record command + static `PublishCakeEndpoint` with `ValidateAsync` (duplicate name → 409 `ProblemDetails`, else `WolverineContinue.NoProblems`) and `[WolverinePost("/cakes")]` returning `CreationResponse`. Marten `IDocumentSession.Store`; `AutoApplyTransactions` commits (never call `SaveChangesAsync`).
-- `Features/BrowseCakes.cs`: `[WolverineGet("/cakes")]`, expression-bodied, `IQuerySession`.
-- `Features/GetCake.cs`: `[WolverineGet("/cakes/{id}")]` with `[Entity(Required = true)]` for the automatic 404.
+- `Cakes/PublishCake.cs`: `PublishCake` positional record command + static `PublishCakeEndpoint` with `ValidateAsync` (duplicate name → 409 `ProblemDetails`, else `WolverineContinue.NoProblems`) and `[WolverinePost("/cakes")]` returning `CreationResponse`. Marten `IDocumentSession.Store`; `AutoApplyTransactions` commits (never call `SaveChangesAsync`).
+- `Cakes/BrowseCakes.cs`: `[WolverineGet("/cakes")]`, expression-bodied, `IQuerySession`.
+- `Cakes/GetCake.cs`: `[WolverineGet("/cakes/{id}")]` with `[Entity(Required = true)]` for the automatic 404.
 - `Cakes/Cake.cs` (or beside the features): Marten document, plain mutable class with `{ get; set; }`, never a record.
 
 Follow the `csharp-critter-style` skill (auto-activates). Show-the-pure-part-first matters for slides: keep the endpoint body free of incidental noise.

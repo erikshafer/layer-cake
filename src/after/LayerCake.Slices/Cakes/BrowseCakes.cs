@@ -1,8 +1,7 @@
-using LayerCake.Slices.Cakes;
 using Marten;
 using Wolverine.Http;
 
-namespace LayerCake.Slices.Features;
+namespace LayerCake.Slices.Cakes;
 
 public static class BrowseCakesEndpoint
 {

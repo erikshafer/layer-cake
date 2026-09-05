@@ -1,8 +1,7 @@
-using LayerCake.Slices.Orders;
 using Marten;
 using Wolverine.Http;
 
-namespace LayerCake.Slices.Features;
+namespace LayerCake.Slices.Orders;
 
 /// <summary>
 /// One item on the bakers' to-do list as the wire sees it (no document id;
