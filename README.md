@@ -169,7 +169,7 @@ Neither side is hiding anything. The before twin does the same validation, the s
 
 ## The proof: one suite, two hosts
 
-`tests/LayerCake.ContractTests` is a single [Alba](https://jasperfx.github.io/alba/) + xUnit + Shouldly project. Every scenario is written once in an abstract class (`CakeScenarios`, `CouponScenarios`, `OrderScenarios`), and two sealed subclasses at the bottom of each file bind it to a host: one boots the Clean Architecture twin, one boots the vertical-slice twin. The test runner sees 26 scenarios twice, 52 runs, and every one of them must pass.
+`tests/LayerCake.ContractTests` is a single [Alba](https://jasperfx.github.io/alba/) + xUnit + Shouldly project. Every scenario is written once in an abstract class (`CakeScenarios`, `CouponScenarios`, `OrderScenarios`), and two sealed subclasses at the bottom of each file bind it to a host: one boots the Clean Architecture twin, one boots the vertical-slice twin. The test runner sees 27 scenarios twice, 54 runs, and every one of them must pass.
 
 The scenarios assert what the contract says, not what is convenient: exact status codes rather than "any 2xx", the `Location` header on creates, the raw body never containing `percentOff` unless the coupon is valid, the discount math to the cent, and that placing an order produces exactly one baker task. For that last one the suite polls the baker endpoint with a short timeout and does not know or care which twin does the work asynchronously.
 
@@ -222,7 +222,7 @@ src/
   frontend/index.html                the static demo page
   monitor/LayerCake.CritterWatch/    the optional monitoring console (port 42030)
 tests/
-  LayerCake.ContractTests/           one Alba suite, both hosts, 26 scenarios x 2
+  LayerCake.ContractTests/           one Alba suite, both hosts, 27 scenarios x 2
 docs/
   slices/                            design record per feature: contract, required structure, scenarios
   file-inventory.md                  honest per-feature file counts (the numbers above come from here)
