@@ -47,6 +47,13 @@ builder.Host.UseWolverine(opts =>
     opts.Policies.AutoApplyTransactions();
     opts.ServiceName = "LayerCake";
 
+    // Local queues are in-memory by default. Durable makes the cascaded
+    // NotifyBaker an actual outbox message: written to the Wolverine envelope
+    // table in the SAME Marten transaction as the order, replayed after a
+    // crash, delivered at least once. Without this line "no order without a
+    // baker task" only holds while the process stays up.
+    opts.Policies.UseDurableLocalQueues();
+
     // CritterWatch monitoring is opt-in via launchSettings (the live-demo run).
     // The contract tests boot this host through Alba without the flag, so
     // `dotnet test` never needs RabbitMQ or the console running.

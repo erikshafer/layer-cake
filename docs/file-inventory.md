@@ -161,3 +161,5 @@ Twins edited (Development-only CORS for the page, nothing else):
 Whole-twin line counts re-run (all `.cs` under `src/before` excluding `obj/` and `Persistence/Migrations/`; all `.cs` under `src/after` excluding `obj/`; raw count including blanks): before twin 1,701 (was 1,696 as of 2026-08-25), after twin 692 (was 687). The +5 on each side is exactly the CORS lines.
 
 Whole-twin line counts re-run 2026-09-04 (same method): before twin 1,733 (was 1,701), after twin 699 (was 692). Before +32: the seeder's coupon-window refresh (+12), the exception filter's logged 500 fallback (+19), and a reworded clock comment (+1). After +7: the Marten unique index on cake name and its comment.
+
+Whole-twin line counts re-run 2026-09-05 (same method): before twin 1,733 (unchanged), after twin 706 (was 699). After +7: `opts.Policies.UseDurableLocalQueues()` and its comment in `Program.cs`, so the cascaded `NotifyBaker` is a real outbox message (see `docs/critter-stack-audit.md`, A1). Non-blank: before 1,432 (unchanged), after 585 (was 579). Test-fixture change (`TwinHosts.cs`) is outside both counts.
