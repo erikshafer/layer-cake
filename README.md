@@ -42,7 +42,7 @@ dotnet build
 dotnet test
 ```
 
-`dotnet test` is the whole point of the repo. The suite starts a throwaway PostgreSQL 17 container per twin, migrates and seeds it, runs every scenario against the Clean Architecture host, runs the identical scenarios against the vertical-slice host, and tears both down. No compose step, no leftover state, no broker. The same command runs in CI on every push.
+`dotnet test` is the whole point of the repo. The suite starts a throwaway PostgreSQL 17 container per twin, migrates and seeds it, runs every scenario against the Clean Architecture host, runs the identical scenarios against the vertical-slice host, and tears both down. Since the baker notification crosses RabbitMQ on both twins, the suite starts a throwaway RabbitMQ 4 container per twin the same way. No compose step, no leftover state. The same command runs in CI on every push.
 
 Want to poke at the APIs in a browser instead? See [Running it live](#running-it-live).
 
@@ -66,6 +66,8 @@ A bakery publishes cakes, shoppers browse them, check a coupon, and place an ord
 | 1 | **Publish and browse cakes** | The hook. One trivial write, traced through every layer of the before twin, then the same feature as a single file in the after twin. |
 | 2 | **Validate a coupon** | Railway-oriented flow. A coupon is `invalid`, `notYetActive`, `expired`, or `valid`, always as a 200 envelope. The evaluation is one shared function that the next feature reuses, which is the in-repo answer to "how do slices share logic?" |
 | 3 | **Place an order** | The A-Frame shape (load, decide purely, persist) and a reliable side effect: placing an order creates exactly one baker task. The after twin sends that through Marten's transactional outbox, so no order without a task and no task without an order. |
+
+A fourth step extends feature 3 rather than adding a feature: the baker notification crosses a real RabbitMQ queue in both twins. The before twin writes a port, an adapter, a hosted consumer, and a re-dispatch to do it, and publishes after its commit with no outbox. The after twin changes `Program.cs` and nothing else. Same broker on both sides; only the idiom changes. It is recorded as slice 004 in `docs/slices/`.
 
 Design notes for each feature, including the contract clauses, the required structure of each twin, and the scenario list, live in `docs/slices/`.
 
@@ -175,21 +177,21 @@ A second, smaller project, `tests/LayerCake.Slices.Tests`, exists for the after 
 
 The scenarios assert what the contract says, not what is convenient: exact status codes rather than "any 2xx", the `Location` header on creates, the raw body never containing `percentOff` unless the coupon is valid, the discount math to the cent, and that placing an order produces exactly one baker task. For that last one the suite polls the baker endpoint with a short timeout and does not know or care which twin does the work asynchronously.
 
-Each twin gets its own PostgreSQL 17 container from Testcontainers, has its schema applied (EF Core migrations on one side, Marten on the other), and is reset and reseeded per scenario class. The two twins run in parallel, and every scenario starts from the same three cakes and three coupons.
+Each twin gets its own PostgreSQL 17 and RabbitMQ 4 containers from Testcontainers, has its schema applied (EF Core migrations on one side, Marten on the other), and is reset and reseeded per scenario class. The two twins run in parallel, and every scenario starts from the same three cakes and three coupons.
 
 ## Running it live
 
 The suite needs nothing but Docker, but to click around you want the twins running against a persistent database.
 
 ```bash
-docker compose up -d                                    # PostgreSQL 17 (+ RabbitMQ, only for the optional monitor)
+docker compose up -d                                    # PostgreSQL 17 + RabbitMQ 4 (both twins use the broker)
 dotnet run --project src/before/LayerCake.WebApi        # http://localhost:42010
 dotnet run --project src/after/LayerCake.Slices         # http://localhost:42020
 ```
 
 Both twins apply their schema and seed data on startup in Development. Swagger UI is at `/swagger` on each. Both write to the one `layercake` database: EF Core into the `before` schema, Marten into the `after` schema. `docker compose down -v` wipes everything.
 
-The after twin's default launch profile turns on CritterWatch telemetry and therefore expects RabbitMQ to be up (compose starts it). To run the after twin with only PostgreSQL, set `CritterWatch__Enabled=false` or pass `--no-launch-profile`.
+Both twins expect RabbitMQ to be up (compose starts it): placing an order publishes the baker notification to a queue, and each twin consumes its own queue inside its own process. The after twin's default launch profile additionally turns on CritterWatch telemetry; set `CritterWatch__Enabled=false` or pass `--no-launch-profile` to run it without the console's queues. The broker's management UI is at http://localhost:15672 (guest/guest) if you want to watch the two `layercake-*-baker-tasks` queues.
 
 ### The demo page
 
@@ -205,7 +207,7 @@ dotnet run --project src/monitor/LayerCake.CritterWatch
 dotnet run --project src/after/LayerCake.Slices
 ```
 
-Then exercise the after twin (the demo page is the easy way) and open the console. It keeps its own event store in a dedicated `critterwatch` PostgreSQL database; the compose file creates that database on a fresh volume, and an existing volume needs a one-off `CREATE DATABASE critterwatch;`. RabbitMQ is the telemetry channel between the twin and the console, which is why compose brings up a broker. In Development the console runs without a license key; outside Development it reads `JasperFx:LicenseKey` from user secrets (id `layercake-critterwatch`). `dotnet test` never touches any of this.
+Then exercise the after twin (the demo page is the easy way) and open the console. It keeps its own event store in a dedicated `critterwatch` PostgreSQL database; the compose file creates that database on a fresh volume, and an existing volume needs a one-off `CREATE DATABASE critterwatch;`. RabbitMQ carries the telemetry between the twin and the console, on top of the baker notification it already carries for both twins. In Development the console runs without a license key; outside Development it reads `JasperFx:LicenseKey` from user secrets (id `layercake-critterwatch`). `dotnet test` never touches the console or the compose broker; it starts its own.
 
 ## Repo tour
 
@@ -213,15 +215,15 @@ Then exercise the after twin (the demo page is the easy way) and open the consol
 src/
   before/                            the Clean Architecture twin
     LayerCake.Domain/                entities, enums, base classes
-    LayerCake.Application/           commands, queries, handlers, validators, DTOs, mapping profiles, interfaces
-    LayerCake.Infrastructure/        DbContext, EF configurations, migrations, repositories, services
-    LayerCake.WebApi/                controllers, exception filter, Program.cs (port 42010)
+    LayerCake.Application/           commands, queries, handlers, validators, DTOs, mapping profiles, interfaces (including the messaging port)
+    LayerCake.Infrastructure/        DbContext, EF configurations, migrations, repositories, services, the RabbitMQ publisher
+    LayerCake.WebApi/                controllers, exception filter, the RabbitMQ consumer, Program.cs (port 42010)
   after/
     LayerCake.Slices/                the vertical-slice twin (port 42020)
       Cakes/                         Cake.cs (the Marten document) plus one file per feature: PublishCake.cs, BrowseCakes.cs, GetCake.cs
       Coupons/                       Coupon.cs, CouponValidation.cs (THE shared rule), ValidateCoupon.cs
       Orders/                        Order.cs, BakerTask.cs, PlaceOrder.cs, NotifyBaker.cs, GetOrder.cs, GetBakerTasks.cs
-      Ping.cs, SeedData.cs, Program.cs
+      Ping.cs, SeedData.cs, Program.cs   (Program.cs holds the whole RabbitMQ wiring)
   frontend/index.html                the static demo page
   monitor/LayerCake.CritterWatch/    the optional monitoring console (port 42030)
 tests/
@@ -233,7 +235,7 @@ docs/
   frontend.md                        the demo page's design record
 openspec/                            the change workflow used during the build; specs/ is what actually shipped
 Directory.Packages.props             every package version, pinned, with the reason for each pin
-docker-compose.yml                   PostgreSQL 17 + RabbitMQ for running the twins live
+docker-compose.yml                   PostgreSQL 17 + RabbitMQ 4 for running the twins live
 ```
 
 ## Tech stack
@@ -246,7 +248,9 @@ docker-compose.yml                   PostgreSQL 17 + RabbitMQ for running the tw
 | Persistence | EF Core 10 + Npgsql, schema `before` | [Marten](https://martendb.io/) 9 documents, schema `after` |
 | Validation | FluentValidation via a MediatR pipeline behavior | Wolverine `Validate` methods returning `ProblemDetails` |
 | Mapping | AutoMapper 14.0.0 | none |
+| Messaging | `RabbitMQ.Client` publisher behind a port, `BackgroundService` consumer, no outbox | Wolverine's RabbitMQ transport with the durable outbox, configured in `Program.cs` |
 | Database | PostgreSQL 17 | PostgreSQL 17 |
+| Broker | RabbitMQ 4 | RabbitMQ 4 |
 | Tests | the shared Alba + xUnit + Shouldly suite | the same suite |
 
 MediatR and AutoMapper are deliberately pinned at their final open-source releases, which is exactly where a lot of real layered codebases sit today. All versions were frozen before the talk's dry runs; the rationale for each pin is a comment in `Directory.Packages.props`.
@@ -257,7 +261,7 @@ It is a laboratory built for a talk, not a starter template and not a production
 
 - Authentication and authorization.
 - Event sourcing. Both twins are state-stored; Marten is used purely as a document store here. If the after twin makes you curious, that refactor is one step away: see [CritterMart](https://github.com/erikshafer/crittermart), which these features were lifted and simplified from.
-- Microservices, messaging between services, or anything beyond one deployable per twin.
+- Microservices, messaging between services, or anything beyond one deployable per twin. The one RabbitMQ message here leaves and re-enters the same process on each side.
 - A frontend framework or SPA. The demo page is a single static file and the talk never depends on it.
 
 It is also not a claim that Clean Architecture is never the right call, or that the Critter Stack is the only way to write slices. It is one honest before-and-after you can clone, run, and argue with.

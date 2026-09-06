@@ -167,3 +167,43 @@ Whole-twin line counts re-run 2026-09-05 (same method): before twin 1,733 (uncha
 Whole-twin line counts re-run 2026-09-05 after Audit Tier B first pass (same method): after twin 706 raw / 585 non-blank (unchanged; the `NotifyBakerHandler` rewrite to a pure `Store<BakerTask>` return is net zero), before twin 1,733 / 1,432 (unchanged). New project `tests/LayerCake.Slices.Tests` (4 files) is a test project and belongs to neither twin's count.
 
 Whole-twin line counts re-run 2026-09-05 after Audit Tier B second pass (same method): after twin 695 raw / 574 non-blank (was 706 / 585). The -11 is exactly the `using` lines made redundant when the slices moved from `Features/` into `Cakes/`, `Coupons/`, `Orders/` and took those namespaces. The per-slice paths above were rewritten to the new locations in the same change; file count per slice is unchanged. Before twin 1,733 / 1,432 (unchanged).
+
+## 004 NotifyBaker over RabbitMQ (recorded 2026-09-05)
+
+Same conventions as 001. Non-`.cs` wiring edits (`.csproj`, `appsettings.json`, `Directory.Packages.props`) are listed separately and stay OUTSIDE the count, so the count remains comparable with slices 001 to 003. This slice adds no endpoint and changes no contract; the numbers are what it costs each twin to put one existing side effect on a real broker.
+
+Before twin (8 files created):
+- src/before/LayerCake.Application/Common/Interfaces/IMessagePublisher.cs
+- src/before/LayerCake.Application/Orders/Messages/NotifyBakerMessage.cs
+- src/before/LayerCake.Application/Baker/Commands/CreateBakerTask/CreateBakerTaskCommand.cs
+- src/before/LayerCake.Application/Baker/Commands/CreateBakerTask/CreateBakerTaskCommandHandler.cs
+- src/before/LayerCake.Infrastructure/Messaging/RabbitMqOptions.cs
+- src/before/LayerCake.Infrastructure/Messaging/RabbitMqConnection.cs
+- src/before/LayerCake.Infrastructure/Messaging/RabbitMqMessagePublisher.cs
+- src/before/LayerCake.WebApi/Messaging/NotifyBakerConsumer.cs
+
+Before twin, earlier-slice `.cs` files edited (6):
+- src/before/LayerCake.Application/Orders/Commands/PlaceOrder/PlaceOrderCommandHandler.cs (`IBakerTaskRepository` out, `IMessagePublisher` in; publish after the commit)
+- src/before/LayerCake.Application/Common/Interfaces/IBakerTaskRepository.cs (`ExistsForOrderAsync`)
+- src/before/LayerCake.Application/Common/Interfaces/IUnitOfWork.cs (summary no longer claims the order and the task share a transaction)
+- src/before/LayerCake.Infrastructure/Repositories/BakerTaskRepository.cs (`ExistsForOrderAsync` implementation)
+- src/before/LayerCake.Infrastructure/DependencyInjection.cs (options, connection singleton, publisher registration)
+- src/before/LayerCake.WebApi/Program.cs (`AddHostedService<NotifyBakerConsumer>`)
+
+Before twin, non-`.cs` wiring edits (outside the count, 3):
+- src/before/LayerCake.Infrastructure/LayerCake.Infrastructure.csproj (`RabbitMQ.Client` reference)
+- src/before/LayerCake.WebApi/appsettings.json (`ConnectionStrings:RabbitMq`, `RabbitMq:QueueName`)
+- Directory.Packages.props (`RabbitMQ.Client` 7.2.2 pin; shared file)
+
+After twin (0 files created).
+
+After twin, `.cs` files edited (1):
+- src/after/LayerCake.Slices/Program.cs (`UseRabbitMq` unconditional, `PublishMessage<NotifyBaker>().ToRabbitQueue(...).UseDurableOutbox()`, `ListenToRabbitQueue`; `UseDurableLocalQueues` and its comment removed)
+
+After twin, non-`.cs` wiring edits (outside the count, 2):
+- src/after/LayerCake.Slices/appsettings.json (`ConnectionStrings:rabbitmq`, for discoverability; the code already had the fallback)
+- src/after/LayerCake.Slices/LayerCake.Slices.csproj (comment only: it claimed the contract tests never need RabbitMQ)
+
+Shared contract suite (outside both counts): TwinHosts.cs edited (`RabbitMqContainerFixture`, second collection fixture on both twins, broker connection string into both hosts, `DisableAllExternalWolverineTransports` removed from the after fixture); the suite csproj gains `Testcontainers.RabbitMq`; Directory.Packages.props gains the `Testcontainers.RabbitMq` 4.14.0 pin. No scenario file changed.
+
+Whole-twin line counts re-run 2026-09-05 after slice 004 (same method): before twin 2,061 raw / 1,705 non-blank (was 1,733 / 1,432; +328 / +273, the eight new files plus the six edits above). After twin 703 raw / 581 non-blank (was 695 / 574; +8 / +7: the RabbitMQ block in `Program.cs` replaced `UseDurableLocalQueues()` and its comment).
