@@ -1,6 +1,7 @@
 using JasperFx;
 using LayerCake.Slices;
 using LayerCake.Slices.Cakes;
+using LayerCake.Slices.Orders;
 using Marten;
 using Marten.Schema;
 using Weasel.Core;
@@ -47,23 +48,30 @@ builder.Host.UseWolverine(opts =>
     opts.Policies.AutoApplyTransactions();
     opts.ServiceName = "LayerCake";
 
-    // Local queues are in-memory by default. Durable makes the cascaded
-    // NotifyBaker an actual outbox message: written to the Wolverine envelope
-    // table in the SAME Marten transaction as the order, replayed after a
-    // crash, delivered at least once. Without this line "no order without a
-    // baker task" only holds while the process stays up.
-    opts.Policies.UseDurableLocalQueues();
+    // The broker is part of the app now, not just the telemetry channel.
+    // AutoProvision declares the queue on startup; the contract suite points
+    // this at its own Testcontainers broker through the same setting.
+    opts.UseRabbitMq(new Uri(builder.Configuration.GetConnectionString("rabbitmq") ?? "amqp://localhost"))
+        .AutoProvision();
+
+    // The cascaded NotifyBaker goes to RabbitMQ. UseDurableOutbox keeps it an
+    // outbox message: the envelope is written to the Wolverine table in the
+    // SAME Marten transaction as the order and sent to the broker after the
+    // commit, replayed after a crash, delivered at least once. Without this
+    // line "no order without a baker task" only holds while the process stays up.
+    opts.PublishMessage<NotifyBaker>()
+        .ToRabbitQueue("layercake-after-baker-tasks")
+        .UseDurableOutbox();
+
+    // The same host consumes the queue, so NotifyBakerHandler runs in-process
+    // after the message has crossed the broker.
+    opts.ListenToRabbitQueue("layercake-after-baker-tasks");
 
     // CritterWatch monitoring is opt-in via launchSettings (the live-demo run).
     // The contract tests boot this host through Alba without the flag, so
-    // `dotnet test` never needs RabbitMQ or the console running.
+    // `dotnet test` never needs the console running.
     if (builder.Configuration.GetValue<bool>("CritterWatch:Enabled"))
     {
-        // Telemetry channel only; no conventional routing, so no accidental
-        // message surface appears on the broker.
-        opts.UseRabbitMq(new Uri(builder.Configuration.GetConnectionString("rabbitmq") ?? "amqp://localhost"))
-            .AutoProvision();
-
         // Telemetry out to the console's well-known intake queue; control
         // commands back on this service's private queue.
         opts.AddCritterWatchMonitoring(

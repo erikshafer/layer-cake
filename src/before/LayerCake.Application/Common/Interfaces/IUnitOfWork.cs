@@ -1,9 +1,9 @@
 namespace LayerCake.Application.Common.Interfaces;
 
 /// <summary>
-/// The transaction boundary. PlaceOrder writes an order AND a baker task
-/// atomically, so those repositories only stage changes and the handler
-/// commits them here in one save.
+/// The transaction boundary. Repositories only stage changes; the handler
+/// that owns the use case commits them here in one save. PlaceOrder commits
+/// the order and then publishes; CreateBakerTask commits the task.
 /// </summary>
 public interface IUnitOfWork
 {

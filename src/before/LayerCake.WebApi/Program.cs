@@ -2,6 +2,7 @@ using LayerCake.Application;
 using LayerCake.Infrastructure;
 using LayerCake.Infrastructure.Persistence;
 using LayerCake.WebApi.Filters;
+using LayerCake.WebApi.Messaging;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,6 +14,9 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddCors();
+
+// The RabbitMQ consumer for the baker notification runs inside this host.
+builder.Services.AddHostedService<NotifyBakerConsumer>();
 
 var app = builder.Build();
 

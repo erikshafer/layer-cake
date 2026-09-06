@@ -20,8 +20,9 @@ services:
       timeout: 5s
       retries: 5
 
-  # Telemetry channel between the after twin and the CritterWatch console.
-  # Only the live demo needs it; the contract tests never touch RabbitMQ.
+  # The baker notification crosses this broker on BOTH twins (slice 004), and
+  # it is also the telemetry channel to the CritterWatch console. The contract
+  # tests start their own broker through Testcontainers and never touch this one.
   rabbitmq:
     image: rabbitmq:4-management
     container_name: layercake-rabbitmq

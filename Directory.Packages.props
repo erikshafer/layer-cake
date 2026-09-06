@@ -45,6 +45,13 @@
     <!-- Design-time only (dotnet ef migrations); matches the EF Core pin. -->
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.4" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+    <!-- Added 2026-09-05 (Erik's call, an addition rather than a bump): slice
+         004 puts the baker notification on RabbitMQ in BOTH twins, and the
+         before twin talks to the broker with the raw client, hand-written
+         publisher and consumer, no framework. 7.2.2 is the exact version
+         WolverineFx.RabbitMQ 6.30.0 already depends on, so the solution
+         carries one copy. -->
+    <PackageVersion Include="RabbitMQ.Client" Version="7.2.2" />
   </ItemGroup>
   <!-- API documentation (both twins expose Swagger UI in Development) -->
   <ItemGroup>
@@ -61,5 +68,10 @@
          suite starts its own PostgreSQL per twin so "dotnet test" needs Docker
          running and nothing else. Same pin as mmo-reconnect. -->
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.14.0" />
+    <!-- Added 2026-09-05 (Erik's call, an addition rather than a bump): slice
+         004 routes the baker notification through RabbitMQ on both twins, so
+         the suite starts its own broker per twin the same way it starts
+         PostgreSQL. Same pin as Testcontainers.PostgreSql. -->
+    <PackageVersion Include="Testcontainers.RabbitMq" Version="4.14.0" />
   </ItemGroup>
 </Project>

@@ -14,11 +14,11 @@ This file is the routing layer for AI sessions: the non-negotiables, the build o
 
 ```
 dotnet build              # one solution, both twins + the CritterWatch console
-dotnet test               # the money shot: identical scenarios, green twice (Docker running is the only prerequisite); also runs the after-twin-only pure-function unit tests in tests/LayerCake.Slices.Tests
-docker compose up -d      # PostgreSQL 17 + RabbitMQ, for running the twins LIVE only (RabbitMQ only feeds CritterWatch)
+dotnet test               # the money shot: identical scenarios, green twice (Docker running is the only prerequisite; Testcontainers starts PostgreSQL AND RabbitMQ per twin); also runs the after-twin-only pure-function unit tests in tests/LayerCake.Slices.Tests
+docker compose up -d      # PostgreSQL 17 + RabbitMQ, for running the twins LIVE only (both twins put the baker notification on the broker; CritterWatch rides it too)
 ```
 
-`dotnet test` starts its own PostgreSQL 17 per twin via Testcontainers (`tests/LayerCake.ContractTests/TwinHosts.cs`); it never touches the compose database, RabbitMQ, or the console.
+`dotnet test` starts its own PostgreSQL 17 and RabbitMQ 4 per twin via Testcontainers (`tests/LayerCake.ContractTests/TwinHosts.cs`); it never touches the compose database, the compose broker, or the console.
 
 Frontend demo page: run both twins, then open `src/frontend/index.html` straight from disk (no build step, no server).
 
@@ -36,6 +36,7 @@ Ports (live demo only; Alba self-hosts in tests): before twin `42010`, after twi
 | Persistence | EF Core 10 + Npgsql, schema `before` | Marten documents, schema `after` |
 | Validation | FluentValidation via MediatR pipeline behavior | Wolverine `Validate()` / ProblemDetails guards |
 | Mapping | AutoMapper 14.0.0 (final OSS release, deliberate) | none (that is the point) |
+| Messaging | `RabbitMQ.Client` publisher behind an Application port, `BackgroundService` consumer in WebApi re-dispatching through MediatR, publish after commit, no outbox | Wolverine RabbitMQ transport: `PublishMessage<NotifyBaker>().ToRabbitQueue(...).UseDurableOutbox()` + `ListenToRabbitQueue`, all in `Program.cs` |
 | Database | PostgreSQL 17 (docker-compose live; Testcontainers under test) | same database, different schema |
 | Tests | shared Alba + xUnit + Shouldly contract suite | the same suite, same scenarios |
 
@@ -87,7 +88,7 @@ The before twin follows conventional Clean Architecture idioms instead where the
 
 Build-week work runs through OpenSpec (`openspec/`, spec-driven schema, CLI 1.10.0). Adopted thin: task checklists, on-rails sessions, and an archive trail — never re-planning.
 
-- **One change per slice**, matching the build order: `slice-001-publish-browse-cakes`, `slice-002-validate-coupon`, `slice-003-place-order`. Each change spans before twin + after twin + shared contract scenarios end to end.
+- **One change per slice**, matching the build order: `slice-001-publish-browse-cakes`, `slice-002-validate-coupon`, `slice-003-place-order`, and (added 2026-09-05) `slice-004-notify-baker-over-rabbitmq`. Each change spans before twin + after twin + shared contract scenarios end to end.
 - Start a slice with `/opsx:propose`, implement with `/opsx:apply`, and `/opsx:archive` only when the shared suite is green on both hosts and the bookkeeping (file inventory, build log) is done.
 - **Change artifacts derive from `docs/slices/`.** The settled slice specs are the source of truth: proposals link to them instead of restating them, delta-spec requirements and scenario names mirror them, and nothing settled gets re-litigated in a proposal. Ambiguity that survives the slice spec goes to the author, not into an assumption.
 - **`openspec/specs/` accretes the built truth**: capabilities `cakes`, `coupons`, and `orders` materialize as slices archive. `docs/slices/` remains the design record; if the two diverge, the archived spec reflects what shipped and the divergence gets reconciled immediately.
@@ -102,14 +103,15 @@ Build **per-slice, end to end** (before + after + contract scenarios), in this o
 | 1 | **PublishCake** (+ BrowseCakes read beat) | Act 1 hook: trivial write through a dozen layered files | `POST /cakes`, `GET /cakes`, `GET /cakes/{id}` |
 | 2 | **ValidateCoupon** | Railway Oriented Programming | `GET /coupons/{code}` always-200 envelope (statuses: invalid, notYetActive, expired, valid); coupons enter via seed data only |
 | 3 | **PlaceOrder** | A-Frame, side effects via outbox | `POST /orders` (optional `couponCode`), `GET /orders/{id}`, baker to-do read |
+| 4 | **NotifyBaker over RabbitMQ** (extends 3; slate amended by Erik 2026-09-05) | What one message costs a layered codebase vs. a slice | No new endpoint. The baker notification crosses a RabbitMQ queue on BOTH twins (`layercake-before-baker-tasks`, `layercake-after-baker-tasks`); the exactly-one-baker-task scenario is the proof |
 
-Slice designs are lifted-and-simplified from CritterMart (`PublishProduct`, `ValidateCoupon`, `PlaceOrder`), state-stored here instead of event-sourced. Coupon statuses come from date mechanics only: exists → active window → valid. "Exhausted" is out of scope (no redemption caps). The baker notification must be synchronously observable (bakers' to-do table with a read endpoint, not log tailing).
+The three-slice lock stands for the talk's Act 3 features; slice 004 is an extension of PlaceOrder's side effect, not a fourth feature. Slice designs are lifted-and-simplified from CritterMart (`PublishProduct`, `ValidateCoupon`, `PlaceOrder`), state-stored here instead of event-sourced. Coupon statuses come from date mechanics only: exists → active window → valid. "Exhausted" is out of scope (no redemption caps). The baker notification must be synchronously observable (bakers' to-do table with a read endpoint, not log tailing).
 
 **Pre-agreed fallbacks:** coupon collapses to validate-only if PlaceOrder crowds the schedule; single-feature deep dive is the emergency compression. The static single-page frontend exists in `src/frontend/` (built 2026-08-25, spec `docs/frontend.md`); it is a demo surface only, not part of the proof, and the deck must never depend on it.
 
 ## Where detail lives
 
-- **In this repo (agent-facing, canonical for BUILD):** `docs/slices/001-003` (per-slice specs: contract, required structure, scenarios, seeds), `docs/frontend.md` (the static demo page's design record), `docs/file-inventory.md` (the honest per-slice file counts; a slide depends on it), `docs/build-log.md` (decisions made mid-build), `openspec/` (change workflow per slice; `openspec/specs/` is canonical for what is BUILT so far).
+- **In this repo (agent-facing, canonical for BUILD):** `docs/slices/001-004` (per-slice specs: contract, required structure, scenarios, seeds), `docs/frontend.md` (the static demo page's design record), `docs/file-inventory.md` (the honest per-slice file counts; a slide depends on it), `docs/build-log.md` (decisions made mid-build), `openspec/` (change workflow per slice; `openspec/specs/` is canonical for what is BUILT so far).
 - **Talk planning (canonical for the TALK, not mirrored here on purpose — narrative and slide beats stay out of the public repo):** the `presentations` repo, `how-i-gave-up-clean-architecture/` (plan.md with all locked decisions, slice-slate-gate.md, api-contract.md, jasperfx-research.md). Mirrored in the author's "Presentations & Talks" Claude project.
 - **Slice design sources:** CritterMart (`C:\Code\crittermart`), the quarry, not the vehicle.
 - **Generic Critter Stack mechanics:** the JasperFx ai-skills library (user-level, license required) and Context7 (`/jasperfx/wolverine`, `/jasperfx/marten`). This repo documents only what diverges.
@@ -120,8 +122,10 @@ Slice designs are lifted-and-simplified from CritterMart (`PublishProduct`, `Val
 
 RESOLVED 2026-08-23 (details in `docs/slices/` and `docs/build-log.md`): error-shape parity (status + content type + reason discoverable, one shared assertion helper); two-schemas-one-database; PublishCake keeps the 409 duplicate-name guard; coupon validation is an always-200 envelope; `GET /cakes/{id}` stays.
 
-RESOLVED 2026-08-25, upgrade pass (details in `docs/build-log.md`): JasperFx pins bumped to Wolverine 6.30.0 / Marten 9.29.0 before the freeze; CritterWatch 1.0.1 ADDED at Erik's explicit call — console host in `src/monitor/`, RabbitMQ in docker-compose, monitoring opt-in so the test suite stays broker-free.
+RESOLVED 2026-08-25, upgrade pass (details in `docs/build-log.md`): JasperFx pins bumped to Wolverine 6.30.0 / Marten 9.29.0 before the freeze; CritterWatch 1.0.1 ADDED at Erik's explicit call — console host in `src/monitor/`, RabbitMQ in docker-compose, monitoring opt-in so the test suite never needs the console (since slice 004 the suite does start its own broker, for the baker notification, not for CritterWatch).
 
 RESOLVED 2026-09-02 (details in `docs/build-log.md`): the contract suite runs on **Testcontainers** (`Testcontainers.PostgreSql` 4.14.0 ADDED at Erik's call, an addition rather than a bump): one `postgres:17` container per twin collection, so `dotnet test` needs only Docker. docker-compose remains for the live demo (twins on their ports, the frontend page, CritterWatch).
+
+RESOLVED 2026-09-05, slice 004 (details in `docs/slices/004-notify-baker-over-rabbitmq.md` and `docs/build-log.md`): the baker notification crosses RabbitMQ on BOTH twins. Before twin: raw `RabbitMQ.Client` 7.2.2 (ADDED at Erik's call), port in Application, publisher in Infrastructure, `BackgroundService` consumer in WebApi, publish after commit, NO outbox (the gap is owned on a slide). After twin: `Program.cs` only, `UseDurableOutbox` on the publish rule. Suite: `Testcontainers.RabbitMq` 4.14.0 (ADDED), one `rabbitmq:4` container per twin collection; the after fixture no longer stubs external transports.
 
 RESOLVED 2026-08-23, slice 001 build (details in `docs/build-log.md`): EF Core **migrations**, not `EnsureCreated`, for the before twin (applied at startup in Development); Marten stored-JSON casing is **explicit camelCase** via `opts.UseSystemTextJsonForSerialization(casing: Casing.CamelCase)` (verified in `after.mt_doc_cake`).

@@ -16,8 +16,10 @@
     <PackageReference Include="Swashbuckle.AspNetCore" />
     <!-- CritterWatch telemetry out of this host. Wiring is gated behind
          CritterWatch:Enabled (launchSettings only), so the contract tests
-         never need RabbitMQ running. -->
+         never need the console running. -->
     <PackageReference Include="Wolverine.CritterWatch" />
+    <!-- The RabbitMQ transport carries the baker notification (slice 004) on
+         every run, tests included; the suite starts its own broker. -->
     <PackageReference Include="WolverineFx.RabbitMQ" />
   </ItemGroup>
 
