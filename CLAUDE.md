@@ -10,6 +10,8 @@ This file is the routing layer for AI sessions: the non-negotiables, the build o
 
 **Mode since 2026-09-05: demo readiness, not build.** All four slices are merged and archived (`main` at `74034cd`, PR #13; suite 54/54 on both hosts, unit tests 15/15, 0 warnings). No new slices, no package bumps (security patches excepted), no re-planning. Sessions now exist for dry-run support, bug fixes that keep the suite green twice, and doc accuracy. A fix that changes built behaviour updates `openspec/specs/`, `docs/file-inventory.md` (if a count moved), and `docs/build-log.md` in the same PR, so every document keeps saying what shipped.
 
+**Experiments (since 2026-09-06).** `experiments/` holds hosts that test a claim rather than ship a slice. Today that is `experiments/before-clean-template/` (the Clean Architecture Solution Template, `dotnet new ca-sln` 10.8.0, generated as-is with slice 001 built its way) and its test project `tests/LayerCake.ContractTests.CleanTemplate/` (PR #15, merged 2026-09-06). Both are outside `LayerCake.slnx`, outside the scorecard, and outside the version freeze (the template's package graph is its own, deliberately unpinned by the repo). Experiments do not run the OpenSpec loop and never touch `src/`, `openspec/`, `docs/slices/`, or the shared scenario classes. Name experiment folders and namespaces after the artifact (`before-clean-template`, `LayerCake.CleanTemplate`; a variant on the `Ardalis.CleanArchitecture.Template` package would be `before-clean-arch`), never after a person.
+
 ---
 
 ## Commands
@@ -17,10 +19,12 @@ This file is the routing layer for AI sessions: the non-negotiables, the build o
 ```
 dotnet build              # one solution, both twins + the CritterWatch console
 dotnet test               # the money shot: identical scenarios, green twice (Docker running is the only prerequisite; Testcontainers starts PostgreSQL AND RabbitMQ per twin); also runs the after-twin-only pure-function unit tests in tests/LayerCake.Slices.Tests
+dotnet test tests/LayerCake.ContractTests.CleanTemplate/LayerCake.ContractTests.CleanTemplate.csproj
+                          # the template experiment only (Docker, PostgreSQL via Testcontainers, no broker); root dotnet test excludes it; 6/10 as committed is the template as shipped
 docker compose up -d      # PostgreSQL 17 + RabbitMQ, for running the twins LIVE only (both twins put the baker notification on the broker; CritterWatch rides it too)
 ```
 
-`dotnet test` starts its own PostgreSQL 17 and RabbitMQ 4 per twin via Testcontainers (`tests/LayerCake.ContractTests/TwinHosts.cs`); it never touches the compose database, the compose broker, or the console.
+`dotnet test` starts its own PostgreSQL 17 and RabbitMQ 4 per twin via Testcontainers (`tests/LayerCake.ContractTests/TwinHosts.cs`); it never touches the compose database, the compose broker, or the console. Root `dotnet test` excludes `experiments/`: the template host's test project is outside the slnx and runs only through the explicit command above.
 
 Frontend demo page: run both twins, then open `src/frontend/index.html` straight from disk (no build step, no server).
 
@@ -73,7 +77,7 @@ The before twin follows conventional Clean Architecture idioms instead where the
 ## Talk-content rules
 
 - **No em dashes** in anything that could land on a slide, in the abstract, or in talk prose. Em dashes are fine in repo markdown like this file and the README.
-- **The file inventory is complete** (`docs/file-inventory.md`: per-slice files created and edited, counted honestly, plus whole-twin line counts). Slides quote it, never a fresh ad-hoc count. Final numbers as of 2026-09-05 (slice 004 plus the consumer shutdown fix): before twin 2,140 raw / 1,775 non-blank lines of C#, after twin 703 / 581. The abstract claims "a dozen files"; the inventory's number is the number the slide says. If twin code changes, re-run the count by the inventory's stated method and update the inventory first.
+- **The file inventory is complete** (`docs/file-inventory.md`: per-slice files created and edited, counted honestly, plus whole-twin line counts). Slides quote it, never a fresh ad-hoc count. Final numbers as of 2026-09-05 (slice 004 plus the consumer shutdown fix): before twin 2,140 raw / 1,775 non-blank lines of C#, after twin 703 / 581. The abstract claims "a dozen files"; the inventory's number is the number the slide says. If twin code changes, re-run the count by the inventory's stated method and update the inventory first. The inventory's final section (the 2026-09-06 template experiment) sits outside those totals, which are unchanged; the experiment's own line counts live there (2,340 raw / 1,882 non-blank as generated, 2,635 / 2,116 with slice 001 and ping) and never join the twins' numbers.
 - The repo is public and attendees will clone it. The README speaks to them; no purist hedging.
 
 ---
@@ -82,7 +86,7 @@ The before twin follows conventional Clean Architecture idioms instead where the
 
 1. Read this file, then the slice spec in `docs/slices/` for whatever you are touching. The spec owns the contract clauses, the before twin's REQUIRED structure (do not collapse its layers; do not pad it either), the after twin's expected shape, and the scenario list. The `csharp-critter-style` skill (`.claude/skills/`) auto-activates for after-twin and test code; it does NOT apply to the before twin.
 2. Stay scoped to the task at hand (one slice, one fix, one doc pass); no opportunistic edits elsewhere. Surfaced out-of-scope work becomes a `docs/build-log.md` line, not a change.
-3. On finishing any change that touches twin code: run the suite (Docker running is enough), update `docs/file-inventory.md` if a file or line count moved, and record any decisions made along the way in `docs/build-log.md`. Doc-only changes get a build-log line and nothing else.
+3. On finishing any change that touches twin code: run the suite (Docker running is enough), update `docs/file-inventory.md` if a file or line count moved, and record any decisions made along the way in `docs/build-log.md`. Doc-only changes get a build-log line and nothing else. A change under `experiments/` runs the CleanTemplate project instead (the explicit `dotnet test` command under Commands) and must leave the root suite untouched; re-run root `dotnet test` to show it still is.
 4. There is no prompt/retro pipeline here (deliberate; the talk is the deadline). The build log is the memory between sessions.
 5. Commit messages and PR bodies are plain: no AI co-author trailers, no "generated with" footers, no tool attribution of any kind.
 
@@ -114,13 +118,15 @@ The three-slice lock stands for the talk's Act 3 features; slice 004 is an exten
 ## Where detail lives
 
 - **In this repo (agent-facing, canonical for BUILD):** `docs/slices/001-004` (per-slice specs: contract, required structure, scenarios, seeds), `docs/frontend.md` (the static demo page's design record), `docs/critter-stack-audit.md` (the after twin, suite, and console audited against the JasperFx skills; closed 2026-09-05, accepted divergences and their reasons recorded there), `docs/file-inventory.md` (the honest per-slice file counts; a slide depends on it), `docs/build-log.md` (decisions made mid-build), `openspec/` (change workflow per slice; `openspec/specs/` is canonical for what is BUILT so far).
+- **The template experiment (2026-09-06):** the final section of `docs/file-inventory.md` ("Experiment: slice 001 on the Clean Architecture Solution Template": file lists, the 9 / 8 number against 19 / 4 and 5 / 1, scaffold edits, line counts) and the 2026-09-06 entry of `docs/build-log.md` (package graph, idiom differences, the hop trace, why the suite is 6/10, the live run, the open calls). PR #15's body is the short version. Link to these; do not restate them.
 - **Talk planning (canonical for the TALK, not mirrored here on purpose — narrative and slide beats stay out of the public repo):** the `presentations` repo, `how-i-gave-up-clean-architecture/` (plan.md with all locked decisions, slice-slate-gate.md, api-contract.md, jasperfx-research.md). Mirrored in the author's "Presentations & Talks" Claude project.
 - **Slice design sources:** CritterMart (`C:\Code\crittermart`), the quarry, not the vehicle.
 - **Generic Critter Stack mechanics:** the JasperFx ai-skills library (user-level, license required) and Context7 (`/jasperfx/wolverine`, `/jasperfx/marten`). This repo documents only what diverges.
 
 ## Open items (decide during build, record here)
 
-- Whether the enterprise-parody display name ("ShopSphere Commerce Platform" energy) appears anywhere (slides only vs. before solution-folder display name). Still open 2026-09-05, the only item left: nothing in `LayerCake.slnx` carries it today, so the repo's de facto answer is "slides only" unless Erik decides otherwise before the deck locks.
+- Whether the enterprise-parody display name ("ShopSphere Commerce Platform" energy) appears anywhere (slides only vs. before solution-folder display name). Still open 2026-09-05, the only build-era item left: nothing in `LayerCake.slnx` carries it today, so the repo's de facto answer is "slides only" unless Erik decides otherwise before the deck locks.
+- Template experiment (PR #15, 2026-09-06), three calls for Erik, detail under "For Erik" in the build-log entry: (a) keep `tests/LayerCake.ContractTests.CleanTemplate` at the honest 6/10, or apply the one-line `Results.Problem` fix in the template's exception handler as a listed scaffold edit and report 10/10; (b) whether the four Guid-key ripple edits count as feature edits (17 touched) or a one-time scaffold cost (13 touched), which decides the reading a slide quotes; (c) whether a second variant on the `Ardalis.CleanArchitecture.Template` package (`before-clean-arch`, about an hour) is worth building.
 
 RESOLVED 2026-08-23 (details in `docs/slices/` and `docs/build-log.md`): error-shape parity (status + content type + reason discoverable, one shared assertion helper); two-schemas-one-database; PublishCake keeps the 409 duplicate-name guard; coupon validation is an always-200 envelope; `GET /cakes/{id}` stays.
 

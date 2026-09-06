@@ -11,7 +11,7 @@ LayerCake is the same small bakery API written twice, side by side, in one .NET 
 | **Before** | `src/before/` (4 projects) | Clean Architecture: controllers, MediatR, FluentValidation, AutoMapper, DTOs, repositories over EF Core |
 | **After** | `src/after/` (1 project) | Vertical slices: one feature per file on Wolverine.Http endpoints and Marten documents |
 
-One shared contract-test suite (`tests/LayerCake.ContractTests`) runs the exact same scenarios against both. If the suite is green twice, the two implementations behave identically. Everything else in the repo exists to make that comparison honest and easy to see for yourself.
+One shared contract-test suite (`tests/LayerCake.ContractTests`) runs the exact same scenarios against both. If the suite is green twice, the two implementations behave identically. Everything else in the repo exists to make that comparison honest and easy to see for yourself. A third, experimental host sits outside the solution in `experiments/before-clean-template/`: slice 001 rebuilt on the Clean Architecture Solution Template (`dotnet new ca-sln`) as it ships, run against the same scenarios so the before twin could be measured against the template it claims to represent. See [The proof](#the-proof-one-suite-two-hosts).
 
 It is the companion repo for the KCDC 2026 talk **"How I Gave Up Clean Architecture, and Why My Code Got Simpler"** by Erik Shafer (Kansas City, September 10-11, 2026). You do not need to have seen the talk to use it. Slides and a recording will be linked here when they exist.
 
@@ -50,7 +50,7 @@ Want to poke at the APIs in a browser instead? See [Running it live](#running-it
 
 The talk makes a claim: the ceremony that Clean Architecture asks of a .NET codebase (the layers, the interfaces over interfaces, the mediator, the mappers, the DTOs) buys less than it costs for most systems, and a feature-folder vertical-slice shape ends up simpler without giving up the things the layers were supposed to protect. A claim like that is easy to make with a strawman. So the rules for this repo were:
 
-1. **The before twin is built earnestly.** It is written the way a disciplined .NET team following the standard Clean Architecture template actually builds things. If it would embarrass a competent architecture review, it does not ship. It is not a caricature and it is not padded to inflate a file count.
+1. **The before twin is built earnestly.** It is written the way a disciplined .NET team following the standard Clean Architecture template actually builds things. If it would embarrass a competent architecture review, it does not ship. It is not a caricature and it is not padded to inflate a file count. That sentence was tested rather than asserted: slice 001 was rebuilt on the Clean Architecture Solution Template (`dotnet new ca-sln`) as generated and counted against both twins. The template differs in specifics (no repository, reads projected straight to DTOs, Minimal API endpoint groups instead of controllers) and matches in layering and ceremony (five MediatR behaviours on every request, a validator, a DTO with a mapping profile, an exception-to-ProblemDetails mapping, an EF configuration, a seed). The number and the file list are in [the experiment section of the inventory](docs/file-inventory.md#experiment-slice-001-on-the-clean-architecture-solution-template-2026-09-06-branch-experimentbefore-clean-template-not-part-of-the-scorecard); the idiom-by-idiom comparison is the 2026-09-06 entry in `docs/build-log.md`.
 2. **The after twin uses its stack's own idioms**, not a translation of the before twin. Wolverine's compound handlers and `ProblemDetails` guards, Marten's document sessions and outbox, side effects as return values. It does not smuggle in a Result type or a hand-rolled mediator.
 3. **Both expose a byte-honest identical HTTP contract**, and one suite proves it. Exact status codes, explicit content types, camelCase JSON, 404 for missing resources, the same problem-details shape on failures.
 4. **Same database engine, different access idiom.** Both twins talk to PostgreSQL 17. EF Core owns the `before` schema, Marten owns the `after` schema, in the same `layercake` database when run live. The comparison is about code shape, not about swapping databases.
@@ -177,6 +177,16 @@ Neither side is hiding anything. The before twin does the same validation, the s
 
 A second, smaller project, `tests/LayerCake.Slices.Tests`, exists for the after twin only. It has no host, no database, and no mocks: 15 facts call the pricing function, the guard chain, the coupon rule, and the baker handler directly and inspect what they return. It is not part of the parity proof. It is the exhibit for why the vertical-slice code is cheap to test, and `dotnet test` runs it alongside the contract suite.
 
+### The experimental third host
+
+`experiments/before-clean-template/` is the Clean Architecture Solution Template (`dotnet new ca-sln`, version 10.8.0) generated as-is, with slice 001 built on it the template's way, and `tests/LayerCake.ContractTests.CleanTemplate/` runs the unchanged cake and ping scenarios against it. Neither is in the solution, so `dotnet test` at the root is exactly the two-host proof above. The test project is separate because one process can load one MediatR: the template ships MediatR 14, the before twin pins 12.5.0, and sharing a test bin broke every before-twin scenario before it ran. Run the experiment on its own (Docker is the only prerequisite):
+
+```bash
+dotnet test tests/LayerCake.ContractTests.CleanTemplate/LayerCake.ContractTests.CleanTemplate.csproj
+```
+
+As committed it is 6 of 10 green, and that is the template as shipped, not a bug in the scenarios: the four error scenarios get the right status codes but the template's exception handler writes `application/json` instead of `application/problem+json`, and its 400 bodies drop the `errors` dictionary that names the failing field. One line in the template's handler makes it 10 of 10; the committed state leaves it as generated. For the same three endpoints the template touches 9 files created / 8 edited, against 19 / 4 for the before twin and 5 / 1 for the after twin. The file list is [the experiment section of the inventory](docs/file-inventory.md#experiment-slice-001-on-the-clean-architecture-solution-template-2026-09-06-branch-experimentbefore-clean-template-not-part-of-the-scorecard), and the narrative (package graph, the hop trace, why the four are red, the one-line fix) is the 2026-09-06 entry in `docs/build-log.md`. The experiment is outside the scorecard and outside the proof.
+
 The scenarios assert what the contract says, not what is convenient: exact status codes rather than "any 2xx", the `Location` header on creates, the raw body never containing `percentOff` unless the coupon is valid, the discount math to the cent, and that placing an order produces exactly one baker task. For that last one the suite polls the baker endpoint with a short timeout and does not know or care which twin does the work asynchronously.
 
 Each twin gets its own PostgreSQL 17 and RabbitMQ 4 containers from Testcontainers, has its schema applied (EF Core migrations on one side, Marten on the other), and is reset and reseeded per scenario class. The two twins run in parallel, and every scenario starts from the same three cakes and three coupons.
@@ -194,6 +204,14 @@ dotnet run --project src/after/LayerCake.Slices         # http://localhost:42020
 Both twins apply their schema and seed data on startup in Development. Swagger UI is at `/swagger` on each. Both write to the one `layercake` database: EF Core into the `before` schema, Marten into the `after` schema. `docker compose down -v` wipes everything.
 
 Both twins expect RabbitMQ to be up (compose starts it): placing an order publishes the baker notification to a queue, and each twin consumes its own queue inside its own process. The after twin's default launch profile additionally turns on CritterWatch telemetry; set `CritterWatch__Enabled=false` or pass `--no-launch-profile` to run it without the console's queues. The broker's management UI is at http://localhost:15672 (guest/guest) if you want to watch the two `layercake-*-baker-tasks` queues.
+
+The experimental template host runs live too. It drops and recreates whatever database its connection string names, so give it its own database name and never the compose `layercake` one:
+
+```bash
+dotnet run --project experiments/before-clean-template/src/Web -- --urls http://localhost:5113 "--ConnectionStrings:LayerCake.CleanTemplateDb=Server=127.0.0.1;Port=5432;Database=layercake_clean_template;Username=postgres;Password=postgres;"
+```
+
+Point it at `42010` instead and the demo page's Before switch drives it for cakes; the page reports `Location: null` because the template's CORS policy does not expose the header (the raw response carries it), and the baker's board shows a 404 because the template has no such endpoint. Both are expected.
 
 ### The demo page
 
@@ -228,9 +246,12 @@ src/
       Ping.cs, SeedData.cs, Program.cs   (Program.cs holds the whole RabbitMQ wiring)
   frontend/index.html                the static demo page
   monitor/LayerCake.CritterWatch/    the optional monitoring console (port 42030)
+experiments/
+  before-clean-template/             the Clean Architecture Solution Template (dotnet new ca-sln) with slice 001 built its way; outside the solution and the scorecard
 tests/
   LayerCake.ContractTests/           one Alba suite, both hosts, 27 scenarios x 2
   LayerCake.Slices.Tests/            15 pure-function facts against the after twin only: no host, no database, no mocks
+  LayerCake.ContractTests.CleanTemplate/  the cake and ping scenarios against the template host; its own project, outside the solution
 docs/
   slices/                            design record per feature: contract, required structure, scenarios
   file-inventory.md                  honest per-feature file counts (the numbers above come from here)
