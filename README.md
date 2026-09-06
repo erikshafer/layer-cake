@@ -19,7 +19,7 @@ It is the companion repo for the KCDC 2026 talk **"How I Gave Up Clean Architect
 
 - [Quick start](#quick-start)
 - [What you are looking at](#what-you-are-looking-at)
-- [The three features](#the-three-features)
+- [Three features and one message](#three-features-and-one-message)
 - [The HTTP contract](#the-http-contract)
 - [Same feature, two shapes](#same-feature-two-shapes)
 - [The proof: one suite, two hosts](#the-proof-one-suite-two-hosts)
@@ -57,17 +57,18 @@ The talk makes a claim: the ceremony that Clean Architecture asks of a .NET code
 
 The after twin changes the architecture *and* the library stack at the same time. That is a confounded experiment, and the talk owns it rather than pretending only one variable moved.
 
-## The three features
+## Three features and one message
 
-A bakery publishes cakes, shoppers browse them, check a coupon, and place an order; the baker gets a to-do entry for each order. Three features, each chosen because it showcases one claim.
+A bakery publishes cakes, shoppers browse them, check a coupon, and place an order; the baker gets a to-do entry for each order. Three features, each chosen because it showcases one claim, plus one extension that puts the third feature's side effect on a real broker.
 
 | # | Feature | What it demonstrates |
 |---|---|---|
 | 1 | **Publish and browse cakes** | The hook. One trivial write, traced through every layer of the before twin, then the same feature as a single file in the after twin. |
 | 2 | **Validate a coupon** | Railway-oriented flow. A coupon is `invalid`, `notYetActive`, `expired`, or `valid`, always as a 200 envelope. The evaluation is one shared function that the next feature reuses, which is the in-repo answer to "how do slices share logic?" |
 | 3 | **Place an order** | The A-Frame shape (load, decide purely, persist) and a reliable side effect: placing an order creates exactly one baker task. The after twin sends that through Marten's transactional outbox, so no order without a task and no task without an order. |
+| 4 | **Notify the baker over RabbitMQ** (extends 3) | What one message costs each shape. The baker notification crosses a real RabbitMQ queue in both twins. The before twin adds a port, an adapter, a hosted consumer, and a re-dispatch through MediatR, and publishes after its commit with no outbox. The after twin changes `Program.cs` and nothing else. |
 
-A fourth step extends feature 3 rather than adding a feature: the baker notification crosses a real RabbitMQ queue in both twins. The before twin writes a port, an adapter, a hosted consumer, and a re-dispatch to do it, and publishes after its commit with no outbox. The after twin changes `Program.cs` and nothing else. Same broker on both sides; only the idiom changes. It is recorded as slice 004 in `docs/slices/`.
+Step 4 adds no endpoint and changes no contract; the scenario that already proved exactly one baker task now proves it across the broker. Same broker on both sides; only the idiom changes. It is recorded as slice 004 in `docs/slices/`.
 
 Design notes for each feature, including the contract clauses, the required structure of each twin, and the scenario list, live in `docs/slices/`.
 
@@ -102,7 +103,8 @@ Seed data is identical on both sides: three cakes (Classic Yellow, Chocolate Sto
 | Publish and browse cakes | 19 files created, 4 edited | 5 files created, 1 edited |
 | Validate coupon | 13 files created, 4 edited | 3 files created, 2 edited |
 | Place order | 26 files created, 6 edited | 6 files created, none edited |
-| Whole twin, all C# source | 1,733 lines | 699 lines |
+| Notify the baker over RabbitMQ | 8 files created, 6 edited | none created, 1 edited |
+| Whole twin, all C# source | 2,061 lines | 703 lines |
 
 The shortest way to feel the difference is to read one feature in both. Publishing a cake in the before twin touches:
 
@@ -228,11 +230,13 @@ src/
   monitor/LayerCake.CritterWatch/    the optional monitoring console (port 42030)
 tests/
   LayerCake.ContractTests/           one Alba suite, both hosts, 27 scenarios x 2
+  LayerCake.Slices.Tests/            15 pure-function facts against the after twin only: no host, no database, no mocks
 docs/
   slices/                            design record per feature: contract, required structure, scenarios
   file-inventory.md                  honest per-feature file counts (the numbers above come from here)
   build-log.md                       dated decisions made while building, for anyone wondering "why is it like this?"
   frontend.md                        the demo page's design record
+  critter-stack-audit.md             the after twin checked against JasperFx's own guidance, with the divergences it kept and why
 openspec/                            the change workflow used during the build; specs/ is what actually shipped
 Directory.Packages.props             every package version, pinned, with the reason for each pin
 docker-compose.yml                   PostgreSQL 17 + RabbitMQ 4 for running the twins live
