@@ -208,3 +208,45 @@ Shared contract suite (outside both counts): TwinHosts.cs edited (`RabbitMqConta
 
 Whole-twin line counts re-run 2026-09-05 after slice 004 (same method): before twin 2,061 raw / 1,705 non-blank (was 1,733 / 1,432; +328 / +273, the eight new files plus the six edits above). After twin 703 raw / 581 non-blank (was 695 / 574; +8 / +7: the RabbitMQ block in `Program.cs` replaced `UseDurableLocalQueues()` and its comment).
 Whole-twin line counts re-run 2026-09-05 after the before twin's consumer shutdown fix (same method; see `docs/build-log.md`): before twin 2,140 raw / 1,775 non-blank (was 2,061 / 1,705; +79 / +70). Two slice 004 files edited, none created: `src/before/LayerCake.WebApi/Messaging/NotifyBakerConsumer.cs` (idempotent `StopAsync`, in-flight gate, bounded consumer cancel, abort on dispose) and `src/before/LayerCake.Infrastructure/Messaging/RabbitMqConnection.cs` (bounded abort before dispose). After twin unchanged at 703 / 581.
+
+## Experiment: slice 001 on the Clean Architecture Solution Template (2026-09-06, branch experiment/before-clean-template, not part of the scorecard)
+
+`Clean.Architecture.Solution.Template` 10.8.0, generated with `dotnet new ca-sln -n LayerCake.CleanTemplate -cf None -db postgresql -o experiments/before-clean-template` (.NET 10 target), not in `LayerCake.slnx`, never under `src/`. Same conventions as slice 001 above: "created" counts `.cs` files created for the feature; pre-existing scaffold files edited to wire the feature in are listed separately; the test host belongs to no count. The template uses no migrations (`EnsureDeletedAsync` + `EnsureCreatedAsync` in its initialiser), so there is no generated code to exclude. Nothing above this section changes and the totals above stand. Full narrative in `docs/build-log.md` (2026-09-06).
+
+Template (9 files created):
+- experiments/before-clean-template/src/Domain/Entities/Cake.cs
+- experiments/before-clean-template/src/Application/Cakes/CakeDto.cs (nested AutoMapper profile, the template's idiom)
+- experiments/before-clean-template/src/Application/Cakes/Commands/PublishCake/PublishCake.cs (command + handler in one file, the template's idiom)
+- experiments/before-clean-template/src/Application/Cakes/Commands/PublishCake/PublishCakeCommandValidator.cs
+- experiments/before-clean-template/src/Application/Cakes/Queries/BrowseCakes/BrowseCakes.cs (query + handler, `ProjectTo`)
+- experiments/before-clean-template/src/Application/Cakes/Queries/GetCake/GetCake.cs (query + handler, `ProjectTo` + `Guard.Against.NotFound`)
+- experiments/before-clean-template/src/Application/Common/Exceptions/DuplicateCakeNameException.cs
+- experiments/before-clean-template/src/Infrastructure/Data/Configurations/CakeConfiguration.cs (unique index on Name)
+- experiments/before-clean-template/src/Web/Endpoints/Cakes.cs (one `IEndpointGroup`, all three endpoints, `RoutePrefix` overridden to `/cakes`)
+
+Template, scaffold `.cs` files edited for the feature (8):
+- experiments/before-clean-template/src/Domain/Common/BaseEntity.cs (the template's `int`-keyed base made generic, the path its own comment suggests; behaviour stays on the non-generic root so both `SaveChanges` interceptors are untouched)
+- experiments/before-clean-template/src/Domain/Common/BaseAuditableEntity.cs (same split: audit fields on the non-generic root, `Id` on `BaseAuditableEntity<TId>`)
+- experiments/before-clean-template/src/Domain/Entities/TodoList.cs (`: BaseAuditableEntity<int>`, ripple of the above)
+- experiments/before-clean-template/src/Domain/Entities/TodoItem.cs (same ripple)
+- experiments/before-clean-template/src/Application/Common/Interfaces/IApplicationDbContext.cs (`DbSet<Cake>`)
+- experiments/before-clean-template/src/Infrastructure/Data/ApplicationDbContext.cs (`DbSet<Cake>`)
+- experiments/before-clean-template/src/Infrastructure/Data/ApplicationDbContextInitialiser.cs (the same three seed cakes as both twins)
+- experiments/before-clean-template/src/Web/Infrastructure/ProblemDetailsExceptionHandler.cs (409 mapping for the new exception)
+
+Side by side, the same three endpoints: before twin 19 created / 4 edited (23 touched); template 9 created / 8 edited (17 touched; 13 if the four Guid-key ripple edits are set aside as a one-time cost); after twin 5 created / 1 edited (6 touched).
+
+Outside the feature count (1):
+- experiments/before-clean-template/src/Web/Endpoints/Ping.cs (the shared ping scenario; the twins' ping endpoints predate slice 001 and sit outside its count too)
+
+Scaffold edits the feature or this machine forced (outside the count, 2; neither is C#):
+- experiments/before-clean-template/global.json (SDK floor lowered from 10.0.201 to 10.0.100: only the 10.0.1xx band is installed here and `rollForward: latestFeature` does not cross feature bands)
+- experiments/before-clean-template/Directory.Build.props (`NU1902;NU1903` appended to the template's own `WarningsNotAsErrors` list: the generated package graph carries current NuGet advisories, and the template's `TreatWarningsAsErrors` turned 162 audit warnings into restore errors, so `dotnet new ca-sln` + `dotnet build` fails as generated on 2026-09-06)
+
+Not needed, checked: isolation props (the template ships its own `Directory.Build.props` and `Directory.Packages.props`, which stop the repo's chain), a provider swap (`--database postgresql` exists), `public partial class Program` (the SDK already emits a public `Program`), removing `RequireAuthorization()` (the new group simply never calls it).
+
+Test host (outside every count): `tests/LayerCake.ContractTests.CleanTemplate/` (csproj + `CleanTemplateHost.cs`: collection, fixture, `CleanTemplateCakes`, `CleanTemplatePing`), its own project and not in `LayerCake.slnx` because the template's MediatR 14.1.0 / AutoMapper 16.1.1 cannot share a test process with the before twin's 12.5.0 / 14.0.0 (see the build log). `tests/LayerCake.ContractTests/` is unchanged on the branch.
+
+Scaffold snapshot as generated, before any feature code (`.cs` per project, excluding bin/obj): src/AppHost 2, src/Application 33, src/Domain 12, src/Infrastructure 11, src/ServiceDefaults 1, src/Shared 1, src/Web 16 (src total 76); tests/Application.FunctionalTests 14, tests/Application.UnitTests 3, tests/Domain.UnitTests 1, tests/Infrastructure.IntegrationTests 1, tests/TestAppHost 1 (total 96).
+
+Line counts (this file's method applied to `experiments/before-clean-template/src`, all `.cs` excluding obj/bin, no migrations exist): as generated 2,340 raw / 1,882 non-blank in 76 files; with slice 001 and ping 2,635 / 2,116 in 86 files. The nine feature files alone are 236 raw / 185 non-blank; the eight edits add 39 raw / 33 non-blank; ping is 20 / 16.
