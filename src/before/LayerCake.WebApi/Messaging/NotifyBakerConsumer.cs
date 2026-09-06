@@ -5,6 +5,7 @@ using LayerCake.Infrastructure.Messaging;
 using MediatR;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using RabbitMQ.Client.Exceptions;
 
 namespace LayerCake.WebApi.Messaging;
 
@@ -18,10 +19,22 @@ public sealed class NotifyBakerConsumer : BackgroundService
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
+    // The graceful part of shutdown gets this long. A broker or database that
+    // does not answer in time must not hold the host for its full shutdown
+    // timeout; the channel is aborted instead and the broker redelivers.
+    private static readonly TimeSpan GracefulStopTimeout = TimeSpan.FromSeconds(5);
+
     private readonly RabbitMqConnection _connection;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<NotifyBakerConsumer> _logger;
+
+    // Prefetch is 1, so at most one delivery is ever being handled; this gate
+    // is how the shutdown waits for it before the channel goes away.
+    private readonly SemaphoreSlim _inFlight = new(1, 1);
+    private readonly object _shutdownLock = new();
+    private Task? _shutdown;
     private IChannel? _channel;
+    private string? _consumerTag;
 
     public NotifyBakerConsumer(
         RabbitMqConnection connection,
@@ -47,17 +60,22 @@ public sealed class NotifyBakerConsumer : BackgroundService
         await _channel.BasicQosAsync(prefetchSize: 0, prefetchCount: 1, global: false, stoppingToken);
 
         var consumer = new AsyncEventingBasicConsumer(_channel);
-        consumer.ReceivedAsync += (_, args) => HandleAsync(args, stoppingToken);
+        consumer.ReceivedAsync += (_, args) => HandleAsync(args);
 
-        await _channel.BasicConsumeAsync(
+        _consumerTag = await _channel.BasicConsumeAsync(
             queue: _connection.QueueName,
             autoAck: false,
             consumer: consumer,
             cancellationToken: stoppingToken);
     }
 
-    private async Task HandleAsync(BasicDeliverEventArgs args, CancellationToken cancellationToken)
+    // The host's stopping token is deliberately not passed down here. A delivery
+    // that is already being handled when shutdown begins runs to completion and
+    // is acknowledged, so stopping the host never drops a baker task; the
+    // shutdown waits on the in-flight gate for exactly that reason.
+    private async Task HandleAsync(BasicDeliverEventArgs args)
     {
+        await _inFlight.WaitAsync();
         try
         {
             var message = JsonSerializer.Deserialize<NotifyBakerMessage>(args.Body.Span, SerializerOptions)
@@ -68,26 +86,77 @@ public sealed class NotifyBakerConsumer : BackgroundService
             using var scope = _scopeFactory.CreateScope();
             var sender = scope.ServiceProvider.GetRequiredService<ISender>();
 
-            await sender.Send(new CreateBakerTaskCommand(message.OrderId, message.Summary), cancellationToken);
+            await sender.Send(new CreateBakerTaskCommand(message.OrderId, message.Summary), CancellationToken.None);
 
-            await _channel!.BasicAckAsync(args.DeliveryTag, multiple: false, cancellationToken);
+            await _channel!.BasicAckAsync(args.DeliveryTag, multiple: false);
         }
         catch (Exception exception)
         {
             _logger.LogError(exception, "Failed to handle NotifyBakerMessage; dropping delivery {DeliveryTag}.", args.DeliveryTag);
 
             // Nack without requeue: a real system would dead-letter here.
-            await _channel!.BasicNackAsync(args.DeliveryTag, multiple: false, requeue: false, cancellationToken);
+            await _channel!.BasicNackAsync(args.DeliveryTag, multiple: false, requeue: false);
+        }
+        finally
+        {
+            _inFlight.Release();
         }
     }
 
-    public override async Task StopAsync(CancellationToken cancellationToken)
+    // A host can ask a hosted service to stop more than once, concurrently:
+    // WebApplicationFactory (which the contract suite reaches through Alba)
+    // stops a host whose own Run() is already stopping. The teardown below
+    // tears down a channel, so it must run exactly once; every caller awaits
+    // the same task.
+    public override Task StopAsync(CancellationToken cancellationToken)
+    {
+        lock (_shutdownLock)
+        {
+            _shutdown ??= ShutdownAsync(cancellationToken);
+        }
+
+        return _shutdown;
+    }
+
+    private async Task ShutdownAsync(CancellationToken cancellationToken)
     {
         await base.StopAsync(cancellationToken);
 
-        if (_channel is not null)
+        if (_channel is null)
         {
-            await _channel.DisposeAsync();
+            return;
         }
+
+        using var graceful = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        graceful.CancelAfter(GracefulStopTimeout);
+
+        try
+        {
+            // Graceful shutdown in two steps: stop taking deliveries, then let the
+            // one in flight finish and acknowledge. Disposing the channel under a
+            // running handler makes its ack land on a closed object, and the
+            // unacknowledged message would come straight back to whichever
+            // consumer subscribes next.
+            if (_consumerTag is not null && _channel.IsOpen)
+            {
+                await _channel.BasicCancelAsync(_consumerTag, noWait: false, graceful.Token);
+            }
+
+            await _inFlight.WaitAsync(graceful.Token);
+            _inFlight.Release();
+        }
+        catch (Exception exception) when (exception is OperationCanceledException or RabbitMQClientException)
+        {
+            _logger.LogWarning(
+                exception,
+                "The baker-task consumer did not stop cleanly within {Timeout}; aborting its channel. An unacknowledged delivery is redelivered.",
+                GracefulStopTimeout);
+        }
+
+        // Dispose aborts the channel: one bounded round trip, never an exception.
+        // A graceful channel close is deliberately not attempted; with this
+        // client version it can leave the connection's main loop unfinished, and
+        // the connection then stalls on its own timeouts while shutting down.
+        await _channel.DisposeAsync();
     }
 }

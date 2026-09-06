@@ -8,6 +8,8 @@ LayerCake is a tiny bakery selling layer cakes: built in layers, served in slice
 
 This file is the routing layer for AI sessions: the non-negotiables, the build order, and where detail lives. **The talk is the deadline. When ceremony conflicts with shipping the talk, shipping wins — explicitly, never silently.**
 
+**Mode since 2026-09-05: demo readiness, not build.** All four slices are merged and archived (`main` at `74034cd`, PR #13; suite 54/54 on both hosts, unit tests 15/15, 0 warnings). No new slices, no package bumps (security patches excepted), no re-planning. Sessions now exist for dry-run support, bug fixes that keep the suite green twice, and doc accuracy. A fix that changes built behaviour updates `openspec/specs/`, `docs/file-inventory.md` (if a count moved), and `docs/build-log.md` in the same PR, so every document keeps saying what shipped.
+
 ---
 
 ## Commands
@@ -71,16 +73,16 @@ The before twin follows conventional Clean Architecture idioms instead where the
 ## Talk-content rules
 
 - **No em dashes** in anything that could land on a slide, in the abstract, or in talk prose. Em dashes are fine in repo markdown like this file and the README.
-- **Record the before twin's per-slice file inventory as it is built** (append to `docs/file-inventory.md`). The abstract claims "a dozen files"; whatever the real number is, that is the number the slide says.
+- **The file inventory is complete** (`docs/file-inventory.md`: per-slice files created and edited, counted honestly, plus whole-twin line counts). Slides quote it, never a fresh ad-hoc count. Final numbers as of 2026-09-05 (slice 004 plus the consumer shutdown fix): before twin 2,140 raw / 1,775 non-blank lines of C#, after twin 703 / 581. The abstract claims "a dozen files"; the inventory's number is the number the slide says. If twin code changes, re-run the count by the inventory's stated method and update the inventory first.
 - The repo is public and attendees will clone it. The README speaks to them; no purist hedging.
 
 ---
 
 ## Session workflow (lightweight on purpose)
 
-1. Read this file, then the slice spec in `docs/slices/` for whatever you are building. The spec owns the contract clauses, the before twin's REQUIRED structure (do not collapse its layers; do not pad it either), the after twin's expected shape, and the scenario list. The `csharp-critter-style` skill (`.claude/skills/`) auto-activates for after-twin and test code; it does NOT apply to the before twin.
-2. Stay scoped to the slice being built; no opportunistic edits elsewhere. Surfaced out-of-scope work becomes a `docs/build-log.md` line, not a change.
-3. On finishing a slice: run the suite (Docker running is enough), append the honest file list to `docs/file-inventory.md`, and record any decisions made along the way in `docs/build-log.md`.
+1. Read this file, then the slice spec in `docs/slices/` for whatever you are touching. The spec owns the contract clauses, the before twin's REQUIRED structure (do not collapse its layers; do not pad it either), the after twin's expected shape, and the scenario list. The `csharp-critter-style` skill (`.claude/skills/`) auto-activates for after-twin and test code; it does NOT apply to the before twin.
+2. Stay scoped to the task at hand (one slice, one fix, one doc pass); no opportunistic edits elsewhere. Surfaced out-of-scope work becomes a `docs/build-log.md` line, not a change.
+3. On finishing any change that touches twin code: run the suite (Docker running is enough), update `docs/file-inventory.md` if a file or line count moved, and record any decisions made along the way in `docs/build-log.md`. Doc-only changes get a build-log line and nothing else.
 4. There is no prompt/retro pipeline here (deliberate; the talk is the deadline). The build log is the memory between sessions.
 5. Commit messages and PR bodies are plain: no AI co-author trailers, no "generated with" footers, no tool attribution of any kind.
 
@@ -89,14 +91,14 @@ The before twin follows conventional Clean Architecture idioms instead where the
 Build-week work runs through OpenSpec (`openspec/`, spec-driven schema, CLI 1.10.0). Adopted thin: task checklists, on-rails sessions, and an archive trail — never re-planning.
 
 - **One change per slice**, matching the build order: `slice-001-publish-browse-cakes`, `slice-002-validate-coupon`, `slice-003-place-order`, and (added 2026-09-05) `slice-004-notify-baker-over-rabbitmq`. Each change spans before twin + after twin + shared contract scenarios end to end.
-- Start a slice with `/opsx:propose`, implement with `/opsx:apply`, and `/opsx:archive` only when the shared suite is green on both hosts and the bookkeeping (file inventory, build log) is done.
+- During the build, each slice started with `/opsx:propose`, was implemented with `/opsx:apply`, and was archived with `/opsx:archive` only once the shared suite was green on both hosts and the bookkeeping (file inventory, build log) was done. **All four changes are archived (last one 2026-09-05).** Post-build work (doc refreshes, demo fixes, bug fixes) does not go through OpenSpec; a behaviour fix keeps `openspec/specs/` in step with what shipped.
 - **Change artifacts derive from `docs/slices/`.** The settled slice specs are the source of truth: proposals link to them instead of restating them, delta-spec requirements and scenario names mirror them, and nothing settled gets re-litigated in a proposal. Ambiguity that survives the slice spec goes to the author, not into an assumption.
 - **`openspec/specs/` accretes the built truth**: capabilities `cakes`, `coupons`, and `orders` materialize as slices archive. `docs/slices/` remains the design record; if the two diverge, the archived spec reflects what shipped and the divergence gets reconciled immediately.
 - Authoring rules and operation guidance live in `openspec/config.yaml`.
 
-## Slice slate (LOCKED) and build order
+## Slice slate (LOCKED, all four BUILT) and build order
 
-Build **per-slice, end to end** (before + after + contract scenarios), in this order. **Each slice has a full spec in `docs/slices/` — read it before writing code:**
+Built **per-slice, end to end** (before + after + contract scenarios), in this order; the last one merged 2026-09-05. **Each slice has a full spec in `docs/slices/` — read it before touching that slice's code:**
 
 | # | Slice | Teaches | Contract surface |
 |---|---|---|---|
@@ -107,18 +109,18 @@ Build **per-slice, end to end** (before + after + contract scenarios), in this o
 
 The three-slice lock stands for the talk's Act 3 features; slice 004 is an extension of PlaceOrder's side effect, not a fourth feature. Slice designs are lifted-and-simplified from CritterMart (`PublishProduct`, `ValidateCoupon`, `PlaceOrder`), state-stored here instead of event-sourced. Coupon statuses come from date mechanics only: exists → active window → valid. "Exhausted" is out of scope (no redemption caps). The baker notification must be synchronously observable (bakers' to-do table with a read endpoint, not log tailing).
 
-**Pre-agreed fallbacks:** coupon collapses to validate-only if PlaceOrder crowds the schedule; single-feature deep dive is the emergency compression. The static single-page frontend exists in `src/frontend/` (built 2026-08-25, spec `docs/frontend.md`); it is a demo surface only, not part of the proof, and the deck must never depend on it.
+**Schedule insurance, never needed (history):** the pre-agreed fallbacks were coupon collapsing to validate-only if PlaceOrder crowded the schedule, and a single-feature deep dive as the emergency compression. All four slices shipped, so neither applies. The static single-page frontend exists in `src/frontend/` (built 2026-08-25, spec `docs/frontend.md`); it is a demo surface only, not part of the proof, and the deck must never depend on it.
 
 ## Where detail lives
 
-- **In this repo (agent-facing, canonical for BUILD):** `docs/slices/001-004` (per-slice specs: contract, required structure, scenarios, seeds), `docs/frontend.md` (the static demo page's design record), `docs/file-inventory.md` (the honest per-slice file counts; a slide depends on it), `docs/build-log.md` (decisions made mid-build), `openspec/` (change workflow per slice; `openspec/specs/` is canonical for what is BUILT so far).
+- **In this repo (agent-facing, canonical for BUILD):** `docs/slices/001-004` (per-slice specs: contract, required structure, scenarios, seeds), `docs/frontend.md` (the static demo page's design record), `docs/critter-stack-audit.md` (the after twin, suite, and console audited against the JasperFx skills; closed 2026-09-05, accepted divergences and their reasons recorded there), `docs/file-inventory.md` (the honest per-slice file counts; a slide depends on it), `docs/build-log.md` (decisions made mid-build), `openspec/` (change workflow per slice; `openspec/specs/` is canonical for what is BUILT so far).
 - **Talk planning (canonical for the TALK, not mirrored here on purpose — narrative and slide beats stay out of the public repo):** the `presentations` repo, `how-i-gave-up-clean-architecture/` (plan.md with all locked decisions, slice-slate-gate.md, api-contract.md, jasperfx-research.md). Mirrored in the author's "Presentations & Talks" Claude project.
 - **Slice design sources:** CritterMart (`C:\Code\crittermart`), the quarry, not the vehicle.
 - **Generic Critter Stack mechanics:** the JasperFx ai-skills library (user-level, license required) and Context7 (`/jasperfx/wolverine`, `/jasperfx/marten`). This repo documents only what diverges.
 
 ## Open items (decide during build, record here)
 
-- Whether the enterprise-parody display name ("ShopSphere Commerce Platform" energy) appears anywhere (slides only vs. before solution-folder display name).
+- Whether the enterprise-parody display name ("ShopSphere Commerce Platform" energy) appears anywhere (slides only vs. before solution-folder display name). Still open 2026-09-05, the only item left: nothing in `LayerCake.slnx` carries it today, so the repo's de facto answer is "slides only" unless Erik decides otherwise before the deck locks.
 
 RESOLVED 2026-08-23 (details in `docs/slices/` and `docs/build-log.md`): error-shape parity (status + content type + reason discoverable, one shared assertion helper); two-schemas-one-database; PublishCake keeps the 409 duplicate-name guard; coupon validation is an always-200 envelope; `GET /cakes/{id}` stays.
 

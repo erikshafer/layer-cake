@@ -72,8 +72,18 @@ public sealed class RabbitMqConnection : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        // Abort, then dispose. Abort is the client's bounded, non-throwing
+        // shutdown (it floors the timeout at five seconds); a graceful close
+        // floors its timeout at thirty and throws on expiry, and under load the
+        // close-ok has been seen not to arrive in time. Disposing an already
+        // closed connection is immediate.
         if (_connection is not null)
         {
+            if (_connection.IsOpen)
+            {
+                await _connection.AbortAsync(TimeSpan.FromSeconds(5));
+            }
+
             await _connection.DisposeAsync();
         }
 
