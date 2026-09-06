@@ -1,4 +1,4 @@
-﻿using LayerCake.CleanTemplate.Domain.Constants;
+using LayerCake.CleanTemplate.Domain.Constants;
 using LayerCake.CleanTemplate.Domain.Entities;
 using LayerCake.CleanTemplate.Domain.ValueObjects;
 using LayerCake.CleanTemplate.Infrastructure.Identity;
@@ -103,6 +103,18 @@ public class ApplicationDbContextInitialiser
                     new TodoItem { Title = "Reward yourself with a nice, long nap 🏆" },
                 }
             });
+
+            await _context.SaveChangesAsync();
+        }
+
+        if (!_context.Cakes.Any())
+        {
+            var publishedAt = DateTimeOffset.UtcNow;
+
+            _context.Cakes.AddRange(
+                new Cake { Name = "Classic Yellow", Description = "Three layers, vanilla buttercream", Price = 24.00m, PublishedAt = publishedAt },
+                new Cake { Name = "Chocolate Stout", Description = "Six layers, no mercy", Price = 34.00m, PublishedAt = publishedAt },
+                new Cake { Name = "Lemon Chiffon", Description = "Light, tart, dangerously easy", Price = 28.00m, PublishedAt = publishedAt });
 
             await _context.SaveChangesAsync();
         }

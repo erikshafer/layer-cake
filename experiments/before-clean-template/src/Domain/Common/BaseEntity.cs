@@ -1,13 +1,13 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace LayerCake.CleanTemplate.Domain.Common;
 
+/// <summary>
+/// Non-generic root so persistence interceptors can find every entity
+/// regardless of key type. The key itself lives on <see cref="BaseEntity{TId}"/>.
+/// </summary>
 public abstract class BaseEntity
 {
-    // This can easily be modified to be BaseEntity<T> and public T Id to support different key types.
-    // Using non-generic integer types for simplicity
-    public int Id { get; set; }
-
     private readonly List<BaseEvent> _domainEvents = new();
 
     [NotMapped]
@@ -27,4 +27,9 @@ public abstract class BaseEntity
     {
         _domainEvents.Clear();
     }
+}
+
+public abstract class BaseEntity<TId> : BaseEntity
+{
+    public TId Id { get; set; } = default!;
 }

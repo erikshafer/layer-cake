@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using LayerCake.CleanTemplate.Application.Common.Interfaces;
 using LayerCake.CleanTemplate.Domain.Entities;
 using LayerCake.CleanTemplate.Infrastructure.Identity;
@@ -14,6 +14,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     public DbSet<TodoList> TodoLists => Set<TodoList>();
 
     public DbSet<TodoItem> TodoItems => Set<TodoItem>();
+
+    public DbSet<Cake> Cakes => Set<Cake>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
