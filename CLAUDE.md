@@ -73,7 +73,7 @@ The before twin follows conventional Clean Architecture idioms instead where the
 ## Talk-content rules
 
 - **No em dashes** in anything that could land on a slide, in the abstract, or in talk prose. Em dashes are fine in repo markdown like this file and the README.
-- **The file inventory is complete** (`docs/file-inventory.md`: per-slice files created and edited, counted honestly, plus whole-twin line counts). Slides quote it, never a fresh ad-hoc count. Final numbers as of 2026-09-05 (slice 004 plus the consumer shutdown fix): before twin 2,142 raw / 1,776 non-blank lines of C#, after twin 703 / 581. The abstract claims "a dozen files"; the inventory's number is the number the slide says. If twin code changes, re-run the count by the inventory's stated method and update the inventory first.
+- **The file inventory is complete** (`docs/file-inventory.md`: per-slice files created and edited, counted honestly, plus whole-twin line counts). Slides quote it, never a fresh ad-hoc count. Final numbers as of 2026-09-05 (slice 004 plus the consumer shutdown fix): before twin 2,140 raw / 1,775 non-blank lines of C#, after twin 703 / 581. The abstract claims "a dozen files"; the inventory's number is the number the slide says. If twin code changes, re-run the count by the inventory's stated method and update the inventory first.
 - The repo is public and attendees will clone it. The README speaks to them; no purist hedging.
 
 ---

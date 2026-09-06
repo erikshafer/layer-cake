@@ -132,11 +132,11 @@ public sealed class NotifyBakerConsumer : BackgroundService
 
         try
         {
-            // Graceful shutdown in three steps: stop taking deliveries, let the
-            // one in flight finish and acknowledge, then close the channel.
-            // Disposing the channel under a running handler makes its ack land
-            // on a closed object, and the unacknowledged message would come
-            // straight back to whichever consumer subscribes next.
+            // Graceful shutdown in two steps: stop taking deliveries, then let the
+            // one in flight finish and acknowledge. Disposing the channel under a
+            // running handler makes its ack land on a closed object, and the
+            // unacknowledged message would come straight back to whichever
+            // consumer subscribes next.
             if (_consumerTag is not null && _channel.IsOpen)
             {
                 await _channel.BasicCancelAsync(_consumerTag, noWait: false, graceful.Token);
@@ -144,11 +144,6 @@ public sealed class NotifyBakerConsumer : BackgroundService
 
             await _inFlight.WaitAsync(graceful.Token);
             _inFlight.Release();
-
-            if (_channel.IsOpen)
-            {
-                await _channel.CloseAsync(graceful.Token);
-            }
         }
         catch (Exception exception) when (exception is OperationCanceledException or RabbitMQClientException)
         {
@@ -158,7 +153,10 @@ public sealed class NotifyBakerConsumer : BackgroundService
                 GracefulStopTimeout);
         }
 
-        // Disposing an open channel aborts it, which is the fallback above.
+        // Dispose aborts the channel: one bounded round trip, never an exception.
+        // A graceful channel close is deliberately not attempted; with this
+        // client version it can leave the connection's main loop unfinished, and
+        // the connection then stalls on its own timeouts while shutting down.
         await _channel.DisposeAsync();
     }
 }
