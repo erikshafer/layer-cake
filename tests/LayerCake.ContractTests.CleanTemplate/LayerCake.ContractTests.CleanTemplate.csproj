@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>LayerCake.ContractTests</RootNamespace>
+  </PropertyGroup>
+
+  <!-- Experiment (branch experiment/before-clean-template only, not in LayerCake.slnx):
+       slice 001 built on the Clean Architecture Solution Template (`dotnet new ca-sln`), run
+       against the SAME cake and ping scenarios as a third host. A separate
+       project rather than a third subclass inside LayerCake.ContractTests:
+       one test process can load one MediatR and one AutoMapper, and the
+       template ships MediatR 14.1.0 / AutoMapper 16.1.1 where the before twin
+       is pinned at 12.5.0 / 14.0.0. Sharing a bin unloaded the before twin's
+       MediatR at runtime (TypeLoadException on ServiceCollectionExtensions),
+       so the twins keep their process and this host gets its own.
+       The scenario base classes come from the existing suite unchanged; the
+       template's Web assembly is aliased because all three hosts expose a
+       public top-level Program. -->
+  <ItemGroup>
+    <ProjectReference Include="..\LayerCake.ContractTests\LayerCake.ContractTests.csproj" />
+    <ProjectReference Include="..\..\experiments\before-clean-template\src\Web\Web.csproj" Aliases="cleantemplate" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Alba" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+</Project>
