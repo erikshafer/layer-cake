@@ -33,6 +33,13 @@ public sealed class BakerTaskRepository : IBakerTaskRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<bool> ExistsForOrderAsync(Guid orderId, CancellationToken cancellationToken)
+    {
+        return await _dbContext.BakerTasks
+            .AsNoTracking()
+            .AnyAsync(t => t.OrderId == orderId, cancellationToken);
+    }
+
     public void Add(BakerTask bakerTask)
     {
         _dbContext.BakerTasks.Add(bakerTask);

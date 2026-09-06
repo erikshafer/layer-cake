@@ -2,6 +2,7 @@ using AutoMapper;
 using LayerCake.Application.Common.Exceptions;
 using LayerCake.Application.Common.Interfaces;
 using LayerCake.Application.Coupons;
+using LayerCake.Application.Orders.Messages;
 using LayerCake.Domain.Entities;
 using LayerCake.Domain.Enums;
 using MediatR;
@@ -14,7 +15,7 @@ public sealed class PlaceOrderCommandHandler : IRequestHandler<PlaceOrderCommand
     private readonly ICouponRepository _couponRepository;
     private readonly ICouponValidationService _couponValidationService;
     private readonly IOrderRepository _orderRepository;
-    private readonly IBakerTaskRepository _bakerTaskRepository;
+    private readonly IMessagePublisher _messagePublisher;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
 
@@ -23,7 +24,7 @@ public sealed class PlaceOrderCommandHandler : IRequestHandler<PlaceOrderCommand
         ICouponRepository couponRepository,
         ICouponValidationService couponValidationService,
         IOrderRepository orderRepository,
-        IBakerTaskRepository bakerTaskRepository,
+        IMessagePublisher messagePublisher,
         IUnitOfWork unitOfWork,
         IMapper mapper)
     {
@@ -31,7 +32,7 @@ public sealed class PlaceOrderCommandHandler : IRequestHandler<PlaceOrderCommand
         _couponRepository = couponRepository;
         _couponValidationService = couponValidationService;
         _orderRepository = orderRepository;
-        _bakerTaskRepository = bakerTaskRepository;
+        _messagePublisher = messagePublisher;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
     }
@@ -106,15 +107,12 @@ public sealed class PlaceOrderCommandHandler : IRequestHandler<PlaceOrderCommand
 
         _orderRepository.Add(order);
 
-        // Notify the baker inline, mid-transaction. Imagine this line is SendGrid.
-        _bakerTaskRepository.Add(new BakerTask
-        {
-            Id = Guid.NewGuid(),
-            OrderId = order.Id,
-            Summary = string.Join(", ", orderLines.Select(l => $"{l.Quantity}x {l.Name}"))
-        });
-
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // Published after the commit. If this line throws, the order exists and
+        // the baker never hears. No outbox, because most real ones do not have one.
+        var summary = string.Join(", ", orderLines.Select(l => $"{l.Quantity}x {l.Name}"));
+        await _messagePublisher.PublishAsync(new NotifyBakerMessage(order.Id, summary), cancellationToken);
 
         return _mapper.Map<OrderDto>(order);
     }

@@ -7,6 +7,9 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <!-- Slice 004: the raw client behind IMessagePublisher. No framework on
+         purpose; the hand-written publisher and consumer are the exhibit. -->
+    <PackageReference Include="RabbitMQ.Client" />
   </ItemGroup>
 
 </Project>

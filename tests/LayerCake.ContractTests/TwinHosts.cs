@@ -6,6 +6,7 @@ using Marten;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
+using Testcontainers.RabbitMq;
 using Wolverine;
 using Xunit;
 
@@ -36,37 +37,63 @@ public sealed class PostgresContainerFixture : IAsyncLifetime
 }
 
 /// <summary>
+/// One throwaway RabbitMQ container per twin collection, the same way as
+/// PostgreSQL: since slice 004 the baker notification crosses a real broker
+/// on both twins, so the suite starts one and "dotnet test" still needs
+/// Docker and nothing else. Same major as docker-compose.yml.
+/// </summary>
+public sealed class RabbitMqContainerFixture : IAsyncLifetime
+{
+    private readonly RabbitMqContainer _rabbitMq = new RabbitMqBuilder("rabbitmq:4").Build();
+
+    public string ConnectionString => _rabbitMq.GetConnectionString();
+
+    public async Task InitializeAsync()
+    {
+        await _rabbitMq.StartAsync();
+    }
+
+    public async Task DisposeAsync()
+    {
+        await _rabbitMq.DisposeAsync();
+    }
+}
+
+/// <summary>
 /// Scenario classes for the same twin share an xUnit collection so they run
 /// sequentially: each class fixture resets that twin's schema and re-seeds,
 /// and parallel hosts would race on startup migrations and seed data.
 /// The two collections still run in parallel with each other, each on its
-/// own container, so the twins never touch each other's database.
+/// own database and broker containers, so the twins never touch each
+/// other's data or consume each other's messages.
 /// </summary>
 [CollectionDefinition(Name)]
-public sealed class BeforeTwinCollection : ICollectionFixture<PostgresContainerFixture>
+public sealed class BeforeTwinCollection : ICollectionFixture<PostgresContainerFixture>, ICollectionFixture<RabbitMqContainerFixture>
 {
     public const string Name = "before twin";
 }
 
 [CollectionDefinition(Name)]
-public sealed class AfterTwinCollection : ICollectionFixture<PostgresContainerFixture>
+public sealed class AfterTwinCollection : ICollectionFixture<PostgresContainerFixture>, ICollectionFixture<RabbitMqContainerFixture>
 {
     public const string Name = "after twin";
 }
 
 /// <summary>
 /// Boots the before twin (Clean Architecture, EF Core + MediatR) for a test
-/// class against the collection's container, applies the EF Core migrations,
+/// class against the collection's containers, applies the EF Core migrations,
 /// then resets the "before" schema and re-seeds so every scenario class
 /// starts from the same three-cake catalog.
 /// </summary>
 public sealed class BeforeHostFixture : IAsyncLifetime
 {
     private readonly PostgresContainerFixture _postgres;
+    private readonly RabbitMqContainerFixture _rabbitMq;
 
-    public BeforeHostFixture(PostgresContainerFixture postgres)
+    public BeforeHostFixture(PostgresContainerFixture postgres, RabbitMqContainerFixture rabbitMq)
     {
         _postgres = postgres;
+        _rabbitMq = rabbitMq;
     }
 
     public IAlbaHost Host { get; private set; } = null!;
@@ -76,6 +103,7 @@ public sealed class BeforeHostFixture : IAsyncLifetime
         Host = await AlbaHost.For<BeforeTwin>(x =>
         {
             x.UseSetting("ConnectionStrings:Postgres", _postgres.ConnectionString);
+            x.UseSetting("ConnectionStrings:RabbitMq", _rabbitMq.ConnectionString);
         });
 
         using var scope = Host.Services.CreateScope();
@@ -102,16 +130,18 @@ public sealed class BeforeHostFixture : IAsyncLifetime
 
 /// <summary>
 /// Boots the after twin (vertical slices, Wolverine + Marten) for a test
-/// class against the collection's container, builds the "after" schema,
+/// class against the collection's containers, builds the "after" schema,
 /// then wipes its documents and re-seeds.
 /// </summary>
 public sealed class AfterHostFixture : IAsyncLifetime
 {
     private readonly PostgresContainerFixture _postgres;
+    private readonly RabbitMqContainerFixture _rabbitMq;
 
-    public AfterHostFixture(PostgresContainerFixture postgres)
+    public AfterHostFixture(PostgresContainerFixture postgres, RabbitMqContainerFixture rabbitMq)
     {
         _postgres = postgres;
+        _rabbitMq = rabbitMq;
     }
 
     public IAlbaHost Host { get; private set; } = null!;
@@ -121,15 +151,17 @@ public sealed class AfterHostFixture : IAsyncLifetime
         Host = await AlbaHost.For<AfterTwin>(x =>
         {
             x.UseSetting("ConnectionStrings:Postgres", _postgres.ConnectionString);
+            // Configuration keys are case-insensitive, so this also satisfies
+            // the after twin's lowercase "rabbitmq" read.
+            x.UseSetting("ConnectionStrings:RabbitMq", _rabbitMq.ConnectionString);
 
             x.ConfigureServices(services =>
             {
                 // Solo mode: no node registration or leader election, so each
                 // sequential test host boots fast and leaves no stale node rows.
-                // Stubbing external transports is belt-and-braces (RabbitMQ is
-                // already gated behind CritterWatch:Enabled, never set here) and
-                // is safe because the after twin only uses local routing.
-                services.DisableAllExternalWolverineTransports();
+                // External transports are deliberately NOT stubbed: since slice
+                // 004 NotifyBaker crosses the collection's real broker, and a
+                // null sender would make the exactly-one-task scenario vacuous.
                 services.RunWolverineInSoloMode();
             });
         });

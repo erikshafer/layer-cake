@@ -1,4 +1,5 @@
 using LayerCake.Application.Common.Interfaces;
+using LayerCake.Infrastructure.Messaging;
 using LayerCake.Infrastructure.Persistence;
 using LayerCake.Infrastructure.Repositories;
 using LayerCake.Infrastructure.Services;
@@ -29,6 +30,21 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<LayerCakeDbContext>());
 
         services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
+
+        // Slice 004: the broker adapter behind IMessagePublisher. The queue
+        // name comes from the RabbitMq section; the URI from ConnectionStrings
+        // so it sits beside Postgres in appsettings and in the test fixture.
+        // Bound by hand: the section binder lives in a package this project
+        // does not reference, and the freeze allows no third addition.
+        services.Configure<RabbitMqOptions>(options =>
+        {
+            options.ConnectionUri = configuration.GetConnectionString("RabbitMq") ?? options.ConnectionUri;
+            options.QueueName = configuration[$"{RabbitMqOptions.SectionName}:QueueName"] ?? options.QueueName;
+        });
+
+        // One connection per host; the container disposes it with the host.
+        services.AddSingleton<RabbitMqConnection>();
+        services.AddSingleton<IMessagePublisher, RabbitMqMessagePublisher>();
 
         return services;
     }
