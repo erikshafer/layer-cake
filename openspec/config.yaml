@@ -14,10 +14,13 @@ context: |
   "after". "dotnet test" green twice is the talk's most credible artifact.
 
   CLAUDE.md is the build charter; read it before anything else. The slice
-  slate is LOCKED at three slices, built per-slice end to end in this order:
-  publish-browse-cakes, validate-coupon, place-order. Behavior is fully
-  settled in docs/slices/001-003 (contract clauses, required before-twin
-  structure, after-twin shape, scenario lists, seeds). Derive every change
+  slate is LOCKED at three features, built per-slice end to end in this order:
+  publish-browse-cakes, validate-coupon, place-order, plus slice 004
+  (notify-baker-over-rabbitmq, amended by Erik 2026-09-05), which extends
+  place-order's side effect onto a real RabbitMQ broker in both twins without
+  adding an endpoint. Behavior is fully settled in docs/slices/001-004
+  (contract clauses, required before-twin structure, after-twin shape,
+  scenario lists, seeds). Derive every change
   artifact from those specs; do not re-litigate settled decisions, and route
   surviving ambiguity to the author rather than assuming.
 
@@ -26,7 +29,8 @@ context: |
   are one capability with two implementations, never two capabilities.
 
   Workflow: one change per slice, named slice-001-publish-browse-cakes,
-  slice-002-validate-coupon, slice-003-place-order. OpenSpec is adopted thin
+  slice-002-validate-coupon, slice-003-place-order,
+  slice-004-notify-baker-over-rabbitmq. OpenSpec is adopted thin
   here: task checklists and an archive trail, not re-planning.
 
 # Per-artifact rules.
@@ -42,7 +46,7 @@ rules:
   tasks:
     - Order tasks per the charter's build discipline; before twin, after twin, shared contract scenarios, seeds, then verification.
     - Every slice ends with the same two bookkeeping tasks; append the before twin's honest file list to docs/file-inventory.md, and record mid-build decisions in docs/build-log.md.
-    - Definition of done for the slice is the shared suite green on BOTH hosts (`dotnet test` with Docker running; the suite starts its own PostgreSQL through Testcontainers).
+    - Definition of done for the slice is the shared suite green on BOTH hosts (`dotnet test` with Docker running; the suite starts its own PostgreSQL and RabbitMQ through Testcontainers).
 
 # Per-operation guidance.
 operations:
