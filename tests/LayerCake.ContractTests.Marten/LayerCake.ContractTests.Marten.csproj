@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>LayerCake.ContractTests</RootNamespace>
+  </PropertyGroup>
+
+  <!-- Experiment (2026-09-09, not in LayerCake.slnx): the after twin as it
+       stood on Marten (experiments/after-marten/), run against the SAME
+       scenario base classes as the two twins in the solution. A separate
+       project rather than a third subclass inside LayerCake.ContractTests so
+       the live `dotnet test` stays two hosts.
+       The Marten twin kept its LayerCake.Slices namespaces, so its assembly is
+       aliased: without that, every shared type name (AfterTwin, SeedData,
+       Cakes.Cake) would be ambiguous against the EF Core twin that comes in
+       through the scenario project. -->
+  <ItemGroup>
+    <ProjectReference Include="..\LayerCake.ContractTests\LayerCake.ContractTests.csproj" />
+    <ProjectReference Include="..\..\experiments\after-marten\LayerCake.Slices.Marten\LayerCake.Slices.Marten.csproj" Aliases="marten" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Alba" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Testcontainers.RabbitMq" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+</Project>

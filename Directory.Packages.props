@@ -14,6 +14,14 @@
   <!-- After twin: Critter Stack 2026 line (Wolverine 6 / Marten 9) -->
   <ItemGroup>
     <PackageVersion Include="WolverineFx.Http" Version="6.30.0" />
+    <!-- Added 2026-09-09 (Erik's call): the core after twin moved from Marten
+         to EF Core so both twins share the ORM and only the architecture
+         changes between them. The one exception to the version freeze; both
+         packages track the existing Wolverine pin, and the EF Core / Npgsql
+         pins are the before twin's, reused as-is. WolverineFx.Marten stays
+         below for the Marten twin, now experiments/after-marten/. -->
+    <PackageVersion Include="WolverineFx.EntityFrameworkCore" Version="6.30.0" />
+    <PackageVersion Include="WolverineFx.Postgresql" Version="6.30.0" />
     <PackageVersion Include="WolverineFx.Marten" Version="6.30.0" />
     <!-- Wolverine 6 no longer ships the Roslyn runtime compiler in core;
          Dynamic codegen (the dev/demo default) throws at startup without this.

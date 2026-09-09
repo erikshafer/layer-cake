@@ -1,7 +1,7 @@
 using System.Reflection;
+using Marten;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Wolverine.Http;
 
 namespace LayerCake.Slices.Cakes;
@@ -33,7 +33,7 @@ public static class PublishCakeEndpoint
     // below only ever sees the happy path.
     public static async Task<ProblemDetails> ValidateAsync(
         PublishCake command,
-        LayerCakeDbContext db,
+        IQuerySession session,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(command.Name))
@@ -46,7 +46,7 @@ public static class PublishCakeEndpoint
             return new ProblemDetails { Detail = "Price must be greater than zero", Status = 400 };
         }
 
-        var nameTaken = await db.Set<Cake>().AnyAsync(c => c.Name == command.Name, ct);
+        var nameTaken = await session.Query<Cake>().AnyAsync(c => c.Name == command.Name, ct);
 
         return nameTaken
             ? new ProblemDetails { Detail = $"A cake named \"{command.Name}\" has already been published", Status = 409 }
@@ -54,7 +54,7 @@ public static class PublishCakeEndpoint
     }
 
     [WolverinePost("/cakes")]
-    public static PublishedCake Post(PublishCake command, LayerCakeDbContext db)
+    public static PublishedCake Post(PublishCake command, IDocumentSession session)
     {
         var cake = new Cake
         {
@@ -66,7 +66,7 @@ public static class PublishCakeEndpoint
         };
 
         // AutoApplyTransactions commits this; no SaveChangesAsync in handlers.
-        db.Add(cake);
+        session.Store(cake);
 
         return new PublishedCake(cake.Id, cake.Name, cake.Description, cake.Price, cake.PublishedAt);
     }

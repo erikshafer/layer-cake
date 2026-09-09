@@ -3,14 +3,14 @@
 LayerCake is a tiny bakery selling layer cakes: built in layers, served in slices. It is the demo system for the KCDC 2026 talk **"How I Gave Up Clean Architecture, and Why My Code Got Simpler"** (Sept 10-11, 2026). The repo is a **laboratory**: one solution, two implementations of the identical HTTP API, one shared contract-test suite proving they behave the same.
 
 - **Before twin** (`src/before/`, four projects): earnest .NET Clean Architecture. EF Core + Npgsql, MediatR, FluentValidation pipeline behavior, AutoMapper, DTOs, repository/service layering. Built sincerely, never as a strawman.
-- **After twin** (`src/after/LayerCake.Slices`, one project): feature-folder vertical slices on Wolverine.Http + Marten documents.
+- **After twin** (`src/after/LayerCake.Slices`, one project): feature-folder vertical slices on Wolverine.Http + EF Core through Wolverine's EF Core integration. Same ORM and same database engine as the before twin (Erik's call, 2026-09-09), so only the architecture and the mediator move between the twins. The Marten version of this twin lives on as an experiment; see below.
 - **The spine** (`tests/LayerCake.ContractTests`): one Alba scenario suite referencing both hosts. Scenarios live in abstract base classes; twin subclasses run the identical set against each host. `dotnet test` green twice is the talk's most credible artifact.
 
 This file is the routing layer for AI sessions: the non-negotiables, the build order, and where detail lives. **The talk is the deadline. When ceremony conflicts with shipping the talk, shipping wins — explicitly, never silently.**
 
-**Mode since 2026-09-05: demo readiness, not build.** All four slices are merged and archived (`main` at `74034cd`, PR #13; suite 54/54 on both hosts, unit tests 15/15, 0 warnings). No new slices, no package bumps (security patches excepted), no re-planning. Sessions now exist for dry-run support, bug fixes that keep the suite green twice, and doc accuracy. A fix that changes built behaviour updates `openspec/specs/`, `docs/file-inventory.md` (if a count moved), and `docs/build-log.md` in the same PR, so every document keeps saying what shipped.
+**Mode since 2026-09-05: demo readiness, not build.** All four slices are merged and archived (`main` at `74034cd`, PR #13; suite 54/54 on both hosts, unit tests 15/15, 0 warnings). No new slices, no package bumps (security patches excepted), no re-planning. Sessions now exist for dry-run support, bug fixes that keep the suite green twice, and doc accuracy. One structural change since: the after twin moved from Marten to EF Core on 2026-09-09 (Erik's call, the day before the talk), which changed no HTTP behaviour and no scenario; the Marten baseline is tagged `kcdc-marten-baseline`. A fix that changes built behaviour updates `openspec/specs/`, `docs/file-inventory.md` (if a count moved), and `docs/build-log.md` in the same PR, so every document keeps saying what shipped.
 
-**Experiments (since 2026-09-06).** `experiments/` holds hosts that test a claim rather than ship a slice. Today that is `experiments/before-clean-template/` (the Clean Architecture Solution Template, `dotnet new ca-sln` 10.8.0, generated as-is with slice 001 built its way) and its test project `tests/LayerCake.ContractTests.CleanTemplate/` (PR #15, merged 2026-09-06). Both are outside `LayerCake.slnx`, outside the scorecard, and outside the version freeze (the template's package graph is its own, deliberately unpinned by the repo). Experiments do not run the OpenSpec loop and never touch `src/`, `openspec/`, `docs/slices/`, or the shared scenario classes. Name experiment folders and namespaces after the artifact (`before-clean-template`, `LayerCake.CleanTemplate`; a variant on the `Ardalis.CleanArchitecture.Template` package would be `before-clean-arch`), never after a person.
+**Experiments (since 2026-09-06).** `experiments/` holds hosts that test a claim rather than ship a slice. Today that is `experiments/after-marten/LayerCake.Slices.Marten` (the after twin as it stood on Marten documents, moved out of the solution 2026-09-09 when the twins were put on one ORM; its test projects are `tests/LayerCake.ContractTests.Marten`, 27/27, and `tests/LayerCake.Slices.Marten.Tests`, 15/15; namespaces stay `LayerCake.Slices` and the contract test project aliases the assembly) and `experiments/before-clean-template/` (the Clean Architecture Solution Template, `dotnet new ca-sln` 10.8.0, generated as-is with slice 001 built its way) and its test project `tests/LayerCake.ContractTests.CleanTemplate/` (PR #15, merged 2026-09-06). All of them are outside `LayerCake.slnx` and outside the scorecard; the template experiment is also outside the version freeze (its package graph is its own, deliberately unpinned by the repo), while the Marten experiment keeps the repo's pins. Experiments do not run the OpenSpec loop and never touch `src/`, `openspec/`, `docs/slices/`, or the shared scenario classes. Name experiment folders and namespaces after the artifact (`before-clean-template`, `LayerCake.CleanTemplate`; a variant on the `Ardalis.CleanArchitecture.Template` package would be `before-clean-arch`), never after a person.
 
 ---
 
@@ -19,12 +19,16 @@ This file is the routing layer for AI sessions: the non-negotiables, the build o
 ```
 dotnet build              # one solution, both twins + the CritterWatch console
 dotnet test               # the money shot: identical scenarios, green twice (Docker running is the only prerequisite; Testcontainers starts PostgreSQL AND RabbitMQ per twin); also runs the after-twin-only pure-function unit tests in tests/LayerCake.Slices.Tests
+dotnet test tests/LayerCake.ContractTests.Marten/LayerCake.ContractTests.Marten.csproj
+                          # the Marten experiment only (Docker: PostgreSQL + RabbitMQ via Testcontainers); the same 27 scenarios against the document-store after twin; root dotnet test excludes it
+dotnet test tests/LayerCake.Slices.Marten.Tests/LayerCake.Slices.Marten.Tests.csproj
+                          # the Marten experiment's 15 pure-function facts; no host, no database
 dotnet test tests/LayerCake.ContractTests.CleanTemplate/LayerCake.ContractTests.CleanTemplate.csproj
                           # the template experiment only (Docker, PostgreSQL via Testcontainers, no broker); root dotnet test excludes it; 6/10 as committed is the template as shipped
 docker compose up -d      # PostgreSQL 17 + RabbitMQ, for running the twins LIVE only (both twins put the baker notification on the broker; CritterWatch rides it too)
 ```
 
-`dotnet test` starts its own PostgreSQL 17 and RabbitMQ 4 per twin via Testcontainers (`tests/LayerCake.ContractTests/TwinHosts.cs`); it never touches the compose database, the compose broker, or the console. Root `dotnet test` excludes `experiments/`: the template host's test project is outside the slnx and runs only through the explicit command above.
+`dotnet test` starts its own PostgreSQL 17 and RabbitMQ 4 per twin via Testcontainers (`tests/LayerCake.ContractTests/TwinHosts.cs`); it never touches the compose database, the compose broker, or the console. Root `dotnet test` excludes `experiments/`: the experiment test projects are outside the slnx and run only through the explicit commands above.
 
 Frontend demo page: run both twins, then open `src/frontend/index.html` straight from disk (no build step, no server).
 
@@ -39,14 +43,15 @@ Ports (live demo only; Alba self-hosts in tests): before twin `42010`, after twi
 | Runtime | .NET 10, C# 14 | .NET 10, C# 14 |
 | HTTP | ASP.NET Core controllers | Wolverine.Http endpoints |
 | Mediation | MediatR 12.5.0 (final OSS release, deliberate) | Wolverine handlers |
-| Persistence | EF Core 10 + Npgsql, schema `before` | Marten documents, schema `after` |
+| Persistence | EF Core 10 + Npgsql, schema `before` | EF Core 10 + Npgsql, schema `after`, via `AddDbContextWithWolverineIntegration` (no migrations folder: `UseEntityFrameworkCoreWolverineManagedMigrations` + `AddResourceSetupOnStartup` build the schema at host start) |
 | Validation | FluentValidation via MediatR pipeline behavior | Wolverine `Validate()` / ProblemDetails guards |
 | Mapping | AutoMapper 14.0.0 (final OSS release, deliberate) | none (that is the point) |
-| Messaging | `RabbitMQ.Client` publisher behind an Application port, `BackgroundService` consumer in WebApi re-dispatching through MediatR, publish after commit, no outbox | Wolverine RabbitMQ transport: `PublishMessage<NotifyBaker>().ToRabbitQueue(...).UseDurableOutbox()` + `ListenToRabbitQueue`, all in `Program.cs` |
+| ORM registration | `AddDbContext` + repositories over it | the `LayerCakeDbContext` injected straight into endpoint methods, no repository and no interface over it |
+| Messaging | `RabbitMQ.Client` publisher behind an Application port, `BackgroundService` consumer in WebApi re-dispatching through MediatR, publish after commit, no outbox | Wolverine RabbitMQ transport: `PublishMessage<NotifyBaker>().ToRabbitQueue(...).UseDurableOutbox()` + `ListenToRabbitQueue`, all in `Program.cs`; the envelope commits in the same EF Core transaction as the order |
 | Database | PostgreSQL 17 (docker-compose live; Testcontainers under test) | same database, different schema |
 | Tests | shared Alba + xUnit + Shouldly contract suite | the same suite, same scenarios |
 
-**Version freeze:** pins live in `Directory.Packages.props` with the rationale. Frozen before dry-run 1 (week of Aug 31). Only security patches justify a bump after the freeze. Do not adopt Alba 9 (beta) before the talk.
+**Version freeze:** pins live in `Directory.Packages.props` with the rationale. Frozen before dry-run 1 (week of Aug 31). Only security patches justify a bump after the freeze. One documented exception, 2026-09-09 (Erik's call): `WolverineFx.EntityFrameworkCore` and `WolverineFx.Postgresql` ADDED at 6.30.0 for the ORM move, both tracking the existing Wolverine pin, with EF Core and Npgsql reusing the before twin's pins. `Marten` and `WolverineFx.Marten` stay pinned for the experiment. Do not adopt Alba 9 (beta) before the talk.
 
 ---
 
@@ -54,10 +59,12 @@ Ports (live demo only; Alba self-hosts in tests): before twin `42010`, after twi
 
 1. **The before twin is built earnestly.** It represents real Clean Architecture .NET codebases and the talk says so. No sabotage, no strawman shortcuts, no deliberately bad code. If it would embarrass a competent 2019 architecture review, it does not ship.
 2. **Same HTTP contract, byte-honest.** Both twins expose the identical surface, verified by the shared suite. Exact status-code assertions (never a 2xx range). Explicit `Content-Type` on request bodies. 404 for missing resources on both sides (do not use Wolverine's `OnMissing.EmptyContentWith204`). camelCase JSON on both sides.
-3. **One deployable per twin, monolith.** No auth. No event sourcing (both twins are state-stored; Marten is used as a document store only). No frontend on the critical path.
+3. **One deployable per twin, monolith.** No auth. No event sourcing (both twins are state-stored). No frontend on the critical path.
 4. **After-twin idioms are Wolverine's, not explicit Result types.** No `IResult` mystery meat, no `OneOf<>`. Sad paths via `Validate`/`ValidateAsync` static methods returning `ProblemDetails` or `WolverineContinue.NoProblems`. Side effects and follow-on messages as return values (cascading), never an injected bus. Never call `SaveChangesAsync` in a handler; `AutoApplyTransactions` commits.
 5. **Shared logic between slices is a deliberate, visible choice.** Coupon validation is ONE shared function used by both ValidateCoupon and PlaceOrder. It is the in-repo answer to "how do slices share logic?"
-6. **Schema separation, one database.** EF Core owns `before`, Marten owns `after`, docker-compose owns PostgreSQL for the live demo (Testcontainers under test). The database engine never changes between twins; only the access idiom does.
+6. **Schema separation, one database, one ORM.** EF Core owns `before` and `after`, docker-compose owns PostgreSQL for the live demo (Testcontainers under test). Neither the database engine nor the ORM changes between twins; the architecture does.
+7. **The after twin's DbContext is never edited per feature.** No `DbSet` properties, no per-entity mapping in it: `HasDefaultSchema("after")` plus `ApplyConfigurationsFromAssembly`. Each table's `IEntityTypeConfiguration<T>` lives in its own feature file next to the type it maps (`Cakes/Cake.cs` carries `Cake` and `CakeTable`), and endpoints reach for `db.Set<T>()`. This is what keeps the scorecard's "edited zero existing files" honest, and it is deliberate; do not add DbSets.
+8. **`Storage.Store<T>` is a no-op against EF Core.** Wolverine's storage actions are upserts on Marten but generate `// No explicit update necessary with EF Core without a Version property` here, so a new row silently never lands. `NotifyBakerHandler` therefore returns an `ISideEffect` (`AddBakerTask`) and carries `[Transactional]`, because a handler with no DbContext parameter is invisible to `AutoApplyTransactions`. The handler stays a pure function; see `docs/build-log.md` (2026-09-09).
 
 ## C# style (both twins where applicable; after twin especially)
 
@@ -65,11 +72,11 @@ Write C# a JasperFx maintainer would recognize. Distilled from the author's `csh
 
 - One command + its validator + its endpoint per file, named after the command (`PublishCake.cs`).
 - Commands verb-first imperative records (`PublishCake`, `NotifyBaker`); events, if any ever exist here, past-tense (`CakePublished`); HTTP response bodies are noun phrases (`PublishedCake`, `PlacedOrder`) so a tuple like `(PlacedOrder, NotifyBaker)` reads as response-plus-command at a glance. **Never suffix a type with a role word such as `Response`, `Request`, `Event`, or `Message`** when it can be avoided; name the type for what it is (Erik's call, 2026-09-05: without the layers, the labels are not needed). Endpoint classes `<VerbNoun>Endpoint`, static, with static methods.
-- Marten documents: plain mutable classes with `{ get; set; }`, never records. Commands/queries: positional records.
-- Inject `IDocumentSession`/`IQuerySession` as method parameters, not constructors. `IQuerySession` for pure reads.
+- EF Core entities: plain mutable classes with `{ get; set; }`, never records, each with its `IEntityTypeConfiguration<T>` in the same file. Commands/queries: positional records.
+- Inject `LayerCakeDbContext` as a method parameter, not a constructor. Pure reads say so: `AsNoTracking()` and `[NonTransactional]`.
 - File-scoped namespaces, top-level `Program.cs`, Allman braces, `var` when apparent, collection expressions for empty defaults, no `#region`, no primary constructors on handler classes.
 - REST-ish noun routes (`POST /cakes`), literal route strings in `[WolverineGet]`/`[WolverinePost]`.
-- Comments explain Wolverine/Marten mechanics (cascading, outbox timing, `[Entity]`), never restate code. Short conversational `/// <summary>` on documents/aggregates.
+- Comments explain Wolverine mechanics (cascading, outbox timing, `[Entity]`, why a read is `[NonTransactional]`), never restate code. Short conversational `/// <summary>` on entities and side effects.
 - Tests: xUnit `[Fact]` + Shouldly + Alba scenarios, snake_case test method names.
 
 The before twin follows conventional Clean Architecture idioms instead where they differ (constructor injection, repository interfaces, DTO mappers). That asymmetry is the exhibit, not an inconsistency.
@@ -118,6 +125,7 @@ The three-slice lock stands for the talk's Act 3 features; slice 004 is an exten
 ## Where detail lives
 
 - **In this repo (agent-facing, canonical for BUILD):** `docs/slices/001-004` (per-slice specs: contract, required structure, scenarios, seeds), `docs/frontend.md` (the static demo page's design record), `docs/critter-stack-audit.md` (the after twin, suite, and console audited against the JasperFx skills; closed 2026-09-05, accepted divergences and their reasons recorded there), `docs/file-inventory.md` (the honest per-slice file counts; a slide depends on it), `docs/build-log.md` (decisions made mid-build), `openspec/` (change workflow per slice; `openspec/specs/` is canonical for what is BUILT so far).
+- **The Marten experiment (2026-09-09):** the 2026-09-09 entry of `docs/build-log.md` (why the twins were put on one ORM, the `Storage.Store<T>` trap, the schema-creation decision, the results) and the 2026-09-09 section of `docs/file-inventory.md` (the file-by-file delta, the DbContext-caller list, the counts). Link to these; do not restate them.
 - **The template experiment (2026-09-06):** the final section of `docs/file-inventory.md` ("Experiment: slice 001 on the Clean Architecture Solution Template": file lists, the 9 / 8 number against 19 / 4 and 5 / 1, scaffold edits, line counts) and the 2026-09-06 entry of `docs/build-log.md` (package graph, idiom differences, the hop trace, why the suite is 6/10, the live run, the open calls). PR #15's body is the short version. Link to these; do not restate them.
 - **Talk planning (canonical for the TALK, not mirrored here on purpose — narrative and slide beats stay out of the public repo):** the `presentations` repo, `how-i-gave-up-clean-architecture/` (plan.md with all locked decisions, slice-slate-gate.md, api-contract.md, jasperfx-research.md). Mirrored in the author's "Presentations & Talks" Claude project.
 - **Slice design sources:** CritterMart (`C:\Code\crittermart`), the quarry, not the vehicle.
@@ -136,4 +144,6 @@ RESOLVED 2026-09-02 (details in `docs/build-log.md`): the contract suite runs on
 
 RESOLVED 2026-09-05, slice 004 (details in `docs/slices/004-notify-baker-over-rabbitmq.md` and `docs/build-log.md`): the baker notification crosses RabbitMQ on BOTH twins. Before twin: raw `RabbitMQ.Client` 7.2.2 (ADDED at Erik's call), port in Application, publisher in Infrastructure, `BackgroundService` consumer in WebApi, publish after commit, NO outbox (the gap is owned on a slide). After twin: `Program.cs` only, `UseDurableOutbox` on the publish rule. Suite: `Testcontainers.RabbitMq` 4.14.0 (ADDED), one `rabbitmq:4` container per twin collection; the after fixture no longer stubs external transports.
 
-RESOLVED 2026-08-23, slice 001 build (details in `docs/build-log.md`): EF Core **migrations**, not `EnsureCreated`, for the before twin (applied at startup in Development); Marten stored-JSON casing is **explicit camelCase** via `opts.UseSystemTextJsonForSerialization(casing: Casing.CamelCase)` (verified in `after.mt_doc_cake`).
+RESOLVED 2026-08-23, slice 001 build (details in `docs/build-log.md`): EF Core **migrations**, not `EnsureCreated`, for the before twin (applied at startup in Development). The camelCase-stored-JSON decision was a Marten one and now applies only to the experiment; the after twin's camelCase is the wire contract, which ASP.NET Core gives by default.
+
+RESOLVED 2026-09-09, the ORM move (details in `docs/build-log.md` and the 2026-09-09 section of `docs/file-inventory.md`): the after twin runs on EF Core through Wolverine; the Marten twin moved to `experiments/after-marten/`. No migrations folder in the after twin (`UseEntityFrameworkCoreWolverineManagedMigrations` + `AddResourceSetupOnStartup`; `EnsureCreated` was rejected because it no-ops when the database already exists, and the twins share one). `Order.Lines` is an owned collection as jsonb (`OwnsMany(...).ToJson()`), one column, no child table. Baker notification is `AddBakerTask : ISideEffect` returned by a pure `[Transactional]` handler that checks for redelivery, because EF Core inserts where the document store upserted on identity. Scorecard: before twin 2,140 raw / 1,775 non-blank unchanged, after twin 844 / 707 (was 703 / 581); per-slice file counts unchanged path for path.

@@ -1,14 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
+  <!-- Experiment (2026-09-09): the after twin as it stood on Marten, kept
+       running so the talk can show the document-store version of the same
+       slices. Outside LayerCake.slnx, outside the scorecard, exercised by
+       tests/LayerCake.ContractTests.Marten and tests/LayerCake.Slices.Marten.Tests.
+       Namespaces stay LayerCake.Slices; only the assembly is renamed, and the
+       contract test project aliases it. -->
+
   <ItemGroup>
     <PackageReference Include="WolverineFx.Http" />
-    <!-- EF Core through Wolverine: AddDbContextWithWolverineIntegration, the
-         transactional middleware, [Entity] against the DbContext, and the
-         storage actions. WolverineFx.Postgresql carries the envelope storage
-         the durable outbox writes into. -->
-    <PackageReference Include="WolverineFx.EntityFrameworkCore" />
-    <PackageReference Include="WolverineFx.Postgresql" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="WolverineFx.Marten" />
     <!-- Wolverine 6 moved the Roslyn runtime compiler out of core, so Dynamic
          codegen (the dev default this demo runs everywhere, tests included)
          needs this package; it auto-registers when referenced. A production app
@@ -18,6 +19,7 @@
          ever runs in Development, and the regen-and-commit ritual is ceremony a
          demo does not need. See https://wolverinefx.net/guide/codegen.html -->
     <PackageReference Include="WolverineFx.RuntimeCompilation" />
+    <PackageReference Include="Marten" />
     <PackageReference Include="Swashbuckle.AspNetCore" />
     <!-- CritterWatch telemetry out of this host. Wiring is gated behind
          CritterWatch:Enabled (launchSettings only), so the contract tests

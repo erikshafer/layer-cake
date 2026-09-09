@@ -1,14 +1,17 @@
 using Alba;
-using LayerCake.Infrastructure.Persistence;
 using LayerCake.Slices;
+using LayerCake.Slices.Cakes;
+using LayerCake.Slices.Coupons;
+using LayerCake.Slices.Orders;
 using LayerCake.WebApi;
-using Marten;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
 using Testcontainers.RabbitMq;
 using Wolverine;
 using Xunit;
+using AfterDb = LayerCake.Slices.LayerCakeDbContext;
+using BeforeDb = LayerCake.Infrastructure.Persistence.LayerCakeDbContext;
 
 namespace LayerCake.ContractTests;
 
@@ -107,7 +110,7 @@ public sealed class BeforeHostFixture : IAsyncLifetime
         });
 
         using var scope = Host.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<LayerCakeDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<BeforeDb>();
 
         // Program.cs only migrates in Development; the fixture owns it here so
         // the suite never depends on how Alba names the environment.
@@ -119,7 +122,7 @@ public sealed class BeforeHostFixture : IAsyncLifetime
         await dbContext.Database.ExecuteSqlRawAsync("""DELETE FROM "before"."Orders";""");
         await dbContext.Cakes.ExecuteDeleteAsync();
         await dbContext.Coupons.ExecuteDeleteAsync();
-        await LayerCakeDbContextSeeder.SeedAsync(dbContext);
+        await LayerCake.Infrastructure.Persistence.LayerCakeDbContextSeeder.SeedAsync(dbContext);
     }
 
     public async Task DisposeAsync()
@@ -129,9 +132,10 @@ public sealed class BeforeHostFixture : IAsyncLifetime
 }
 
 /// <summary>
-/// Boots the after twin (vertical slices, Wolverine + Marten) for a test
-/// class against the collection's containers, builds the "after" schema,
-/// then wipes its documents and re-seeds.
+/// Boots the after twin (vertical slices, Wolverine + EF Core) for a test
+/// class against the collection's containers. Wolverine builds the "after"
+/// schema as the host starts, so the fixture only has to wipe the tables
+/// and re-seed.
 /// </summary>
 public sealed class AfterHostFixture : IAsyncLifetime
 {
@@ -166,15 +170,17 @@ public sealed class AfterHostFixture : IAsyncLifetime
             });
         });
 
-        var store = Host.Services.GetRequiredService<IDocumentStore>();
+        using var scope = Host.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AfterDb>();
 
-        // The Marten counterpart of MigrateAsync: build every configured
-        // table up front instead of leaning on AutoCreate during the first
-        // scenario, so the wipe below has something to wipe on a fresh box.
-        await store.Storage.ApplyAllConfiguredChangesToDatabaseAsync();
-
-        await Host.CleanAllMartenDataAsync();
-        await SeedData.ApplyAsync(store);
+        // The tables already exist: AddResourceSetupOnStartup builds the
+        // model Wolverine manages for this DbContext as the host starts, so
+        // there is no migration step here and no migrations folder in the twin.
+        await db.Set<BakerTask>().ExecuteDeleteAsync();
+        await db.Set<Order>().ExecuteDeleteAsync();
+        await db.Set<Cake>().ExecuteDeleteAsync();
+        await db.Set<Coupon>().ExecuteDeleteAsync();
+        await SeedData.ApplyAsync(db);
     }
 
     public async Task DisposeAsync()

@@ -1,5 +1,8 @@
 # Slice 004 — NotifyBaker over RabbitMQ
 
+> **Note (2026-09-09):** this spec's after-twin passages describe the Marten implementation, which now lives at `experiments/after-marten/`. The core after twin runs the same slices on EF Core through Wolverine; the HTTP contract, the scenario list and the required before-twin structure below are unchanged. See the 2026-09-09 entry in `docs/build-log.md`.
+
+
 **Why this slice is in the talk:** slice 003 made "tell the baker" a cascaded message in the after twin and an inline row write in the before twin. This slice puts that one side effect on a real broker in BOTH twins, so the talk can show what a message costs a layered codebase (a port, an adapter, a hosted consumer, a re-dispatch, wiring in every ring) against what it costs a slice (configuration in `Program.cs`; the feature files do not change). Same broker both sides; only the idiom changes. Decided 2026-09-05.
 
 ## Contract (unchanged from slice 003)

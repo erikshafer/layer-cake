@@ -1,6 +1,6 @@
 using LayerCake.Slices.Cakes;
 using LayerCake.Slices.Coupons;
-using Marten;
+using Microsoft.EntityFrameworkCore;
 
 namespace LayerCake.Slices;
 
@@ -11,12 +11,9 @@ namespace LayerCake.Slices;
 /// </summary>
 public static class SeedData
 {
-    public static async Task ApplyAsync(IDocumentStore store, CancellationToken ct = default)
+    public static async Task ApplyAsync(LayerCakeDbContext db, CancellationToken ct = default)
     {
-        // A plain session, not a handler: seeding owns its own commit.
-        await using var session = store.LightweightSession();
-
-        var existing = await session.Query<Cake>().Select(c => c.Name).ToListAsync(ct);
+        var existing = await db.Set<Cake>().Select(c => c.Name).ToListAsync(ct);
 
         Cake[] cakeSeeds =
         [
@@ -29,20 +26,41 @@ public static class SeedData
         {
             seed.Id = Guid.NewGuid();
             seed.PublishedAt = DateTimeOffset.UtcNow;
-            session.Store(seed);
+            db.Add(seed);
         }
 
         // Coupon windows are relative to now (±1 year, ±1 day) so the seeded
         // statuses (valid, expired, notYetActive) never rot with the calendar.
-        // The code is the document identity, so Store is an idempotent upsert:
-        // seeding twice still leaves exactly three coupons.
+        // The code is the primary key, so seeding twice still leaves exactly
+        // three coupons.
         var now = DateTimeOffset.UtcNow;
+        var codes = await db.Set<Coupon>().Select(c => c.Code).ToListAsync(ct);
 
-        session.Store(
-            new Coupon { Code = "BDAY10", PercentOff = 10, StartsAt = now.AddYears(-1), ExpiresAt = now.AddYears(1) },
-            new Coupon { Code = "SUMMER25", PercentOff = 25, StartsAt = now.AddYears(-1), ExpiresAt = now.AddDays(-1) },
-            new Coupon { Code = "HOLIDAY30", PercentOff = 30, StartsAt = now.AddDays(1), ExpiresAt = now.AddYears(1) });
+        Coupon[] couponSeeds =
+        [
+            new() { Code = "BDAY10", PercentOff = 10, StartsAt = now.AddYears(-1), ExpiresAt = now.AddYears(1) },
+            new() { Code = "SUMMER25", PercentOff = 25, StartsAt = now.AddYears(-1), ExpiresAt = now.AddDays(-1) },
+            new() { Code = "HOLIDAY30", PercentOff = 30, StartsAt = now.AddDays(1), ExpiresAt = now.AddYears(1) }
+        ];
 
-        await session.SaveChangesAsync(ct);
+        db.AddRange(couponSeeds.Where(s => !codes.Contains(s.Code)));
+
+        // Seeding owns its own commit; this is not a handler.
+        await db.SaveChangesAsync(ct);
     }
+}
+
+/// <summary>
+/// Seeds once the host is up, which is after Wolverine has built the schema.
+/// Registered in Development only; the contract suite seeds itself.
+/// </summary>
+public sealed class SeedOnStartup(IServiceProvider services) : IHostedService
+{
+    public async Task StartAsync(CancellationToken cancellationToken)
+    {
+        using var scope = services.CreateScope();
+        await SeedData.ApplyAsync(scope.ServiceProvider.GetRequiredService<LayerCakeDbContext>(), cancellationToken);
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }

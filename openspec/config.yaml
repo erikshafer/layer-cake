@@ -9,7 +9,7 @@ context: |
   The repo is a laboratory: ONE solution, TWO implementations of the identical
   HTTP API, one shared Alba contract-test suite proving they behave the same.
   Before twin: earnest .NET Clean Architecture (EF Core + Npgsql, MediatR,
-  AutoMapper, FluentValidation). After twin: Wolverine.Http + Marten vertical
+  AutoMapper, FluentValidation). After twin: Wolverine.Http + EF Core vertical
   slices. .NET 10 / C# 14, PostgreSQL 17, one database, schemas "before" and
   "after". "dotnet test" green twice is the talk's most credible artifact.
 
