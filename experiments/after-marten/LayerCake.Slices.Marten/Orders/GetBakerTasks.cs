@@ -1,27 +1,26 @@
-using Microsoft.EntityFrameworkCore;
-using Wolverine.Attributes;
+using Marten;
 using Wolverine.Http;
 
 namespace LayerCake.Slices.Orders;
 
 /// <summary>
-/// One item on the bakers' to-do list as the wire sees it (no row id;
+/// One item on the bakers' to-do list as the wire sees it (no document id;
 /// the order id is the interesting one).
 /// </summary>
 public record BakerTaskItem(Guid OrderId, string Summary, DateTimeOffset CreatedAt);
 
 public static class GetBakerTasksEndpoint
 {
-    // A pure read. orderId is an optional query-string filter so the contract
-    // suite can probe for one order's task.
-    [NonTransactional]
+    // IQuerySession, not IDocumentSession: this is a pure read. orderId is
+    // an optional query-string filter so the contract suite can probe for
+    // one order's task.
     [WolverineGet("/baker/tasks")]
     public static async Task<IReadOnlyList<BakerTaskItem>> Get(
         Guid? orderId,
-        LayerCakeDbContext db,
+        IQuerySession session,
         CancellationToken ct)
     {
-        var query = db.Set<BakerTask>().AsNoTracking();
+        IQueryable<BakerTask> query = session.Query<BakerTask>();
 
         if (orderId is not null)
         {

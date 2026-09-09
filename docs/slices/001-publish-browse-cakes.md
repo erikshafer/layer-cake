@@ -1,5 +1,8 @@
 # Slice 001 — PublishCake + BrowseCakes
 
+> **Note (2026-09-09):** this spec's after-twin passages describe the Marten implementation, which now lives at `experiments/after-marten/`. The core after twin runs the same slices on EF Core through Wolverine; the HTTP contract, the scenario list and the required before-twin structure below are unchanged. See the 2026-09-09 entry in `docs/build-log.md`.
+
+
 **Why this slice is in the talk:** the Act 1 hook. One trivial write traced through the before twin's full layer ceremony ("I did everything right"), then the same feature as a single after-twin file. Browse is a named 2-3 minute beat with its own read-stack contrast. This slice's honest file count IS a slide number: record it in `docs/file-inventory.md`.
 
 CritterMart source design: Catalog `PublishProduct` (one file, ProblemDetails guard, ~60 lines).

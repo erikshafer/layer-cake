@@ -1,12 +1,15 @@
-using Marten;
+using Microsoft.EntityFrameworkCore;
+using Wolverine.Attributes;
 using Wolverine.Http;
 
 namespace LayerCake.Slices.Cakes;
 
 public static class BrowseCakesEndpoint
 {
-    // IQuerySession, not IDocumentSession: this is a pure read.
+    // AsNoTracking and [NonTransactional]: this is a pure read, so no change
+    // tracker and no transaction around it.
+    [NonTransactional]
     [WolverineGet("/cakes")]
-    public static Task<IReadOnlyList<Cake>> Get(IQuerySession session, CancellationToken ct)
-        => session.Query<Cake>().OrderBy(c => c.Name).ToListAsync(ct);
+    public static Task<List<Cake>> Get(LayerCakeDbContext db, CancellationToken ct)
+        => db.Set<Cake>().AsNoTracking().OrderBy(c => c.Name).ToListAsync(ct);
 }

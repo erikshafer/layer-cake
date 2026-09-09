@@ -3,9 +3,9 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using LayerCake.Slices.Cakes;
 using LayerCake.Slices.Coupons;
+using Marten;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Wolverine.Http;
 
 namespace LayerCake.Slices.Orders;
@@ -54,20 +54,18 @@ public static class PlaceOrderEndpoint
     // Wolverine passes this method's return value into Validate and Post.
     public static async Task<PlaceOrderData> LoadAsync(
         PlaceOrder command,
-        LayerCakeDbContext db,
+        IQuerySession session,
         CancellationToken ct)
     {
         var cakeIds = (command.Lines ?? []).Select(l => l.CakeId).Distinct().ToArray();
 
         var cakes = cakeIds.Length == 0
             ? []
-            : await db.Set<Cake>().AsNoTracking().Where(c => cakeIds.Contains(c.Id)).ToListAsync(ct);
+            : await session.LoadManyAsync<Cake>(ct, cakeIds);
 
-        var couponCode = command.CouponCode?.ToUpperInvariant();
-
-        var coupon = couponCode is null
+        var coupon = string.IsNullOrWhiteSpace(command.CouponCode)
             ? null
-            : await db.Set<Coupon>().AsNoTracking().FirstOrDefaultAsync(c => c.Code == couponCode, ct);
+            : await session.LoadAsync<Coupon>(command.CouponCode.ToUpperInvariant(), ct);
 
         return new PlaceOrderData(cakes, coupon);
     }
@@ -125,14 +123,14 @@ public static class PlaceOrderEndpoint
     }
 
     [WolverinePost("/orders")]
-    public static (PlacedOrder, NotifyBaker) Post(PlaceOrder command, PlaceOrderData data, LayerCakeDbContext db)
+    public static (PlacedOrder, NotifyBaker) Post(PlaceOrder command, PlaceOrderData data, IDocumentSession session)
     {
         var order = Decide(command.Lines!, data.Cakes, data.Coupon, DateTimeOffset.UtcNow);
 
-        db.Add(order);
+        session.Store(order);
 
         // The A-Frame beat: storing the order and sending NotifyBaker are one
-        // atomic act. The cascaded message rides Wolverine's outbox in the SAME
+        // atomic act. The cascaded message rides Marten's outbox in the SAME
         // transaction AutoApplyTransactions commits, so no order without a
         // baker task, no baker task without an order.
         var summary = string.Join(", ", order.Lines.Select(l => $"{l.Quantity}x {l.Name}"));

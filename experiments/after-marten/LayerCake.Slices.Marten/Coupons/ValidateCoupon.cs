@@ -1,6 +1,5 @@
 using System.Text.Json.Serialization;
-using Microsoft.EntityFrameworkCore;
-using Wolverine.Attributes;
+using Marten;
 using Wolverine.Http;
 
 namespace LayerCake.Slices.Coupons;
@@ -18,14 +17,13 @@ public record CouponValidated(
 public static class ValidateCouponEndpoint
 {
     // Deliberately not [Entity]: the route value needs uppercasing before it
-    // can be the key, and a miss here is the normal "invalid" answer, never
-    // a 404.
-    [NonTransactional]
+    // can be the document identity, and a miss here is the normal "invalid"
+    // answer, never a 404.
     [WolverineGet("/coupons/{code}")]
-    public static async Task<CouponValidated> Get(string code, LayerCakeDbContext db, CancellationToken ct)
+    public static async Task<CouponValidated> Get(string code, IQuerySession session, CancellationToken ct)
     {
         var canonical = code.ToUpperInvariant();
-        var coupon = await db.Set<Coupon>().AsNoTracking().FirstOrDefaultAsync(c => c.Code == canonical, ct);
+        var coupon = await session.LoadAsync<Coupon>(canonical, ct);
 
         var status = CouponValidation.Evaluate(coupon, DateTimeOffset.UtcNow);
 

@@ -1,5 +1,8 @@
 # Slice 003 — PlaceOrder
 
+> **Note (2026-09-09):** this spec's after-twin passages describe the Marten implementation, which now lives at `experiments/after-marten/`. The core after twin runs the same slices on EF Core through Wolverine; the HTTP contract, the scenario list and the required before-twin structure below are unchanged. See the 2026-09-09 entry in `docs/build-log.md`.
+
+
 **Why this slice is in the talk:** the A-Frame act, plus the reliable-side-effect lesson. The after twin's handler is guard → pure decide → return (state change + cascaded message); Wolverine's outbox carries the "notify the baker" side effect. The before twin performs the same side effect inline mid-transaction, narrated in the talk as "imagine this line is SendGrid." The baker to-do surface makes the async effect synchronously observable in a demo (a table you can query, not a log to tail).
 
 CritterMart source design: Orders `PlaceOrder` (handler returns HTTP result + cascaded messages via outbox). Cut from the source: DCB, composite boundaries, payment timeout. Keep: guard → decide → return.

@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!-- Experiment (2026-09-09): the Marten twin's unit tests, moved with it.
+       Outside LayerCake.slnx; root `dotnet test` never sees them.
+       After-twin-only unit tests. The shared contract suite proves the two
+       twins behave identically; this project shows something the before twin
+       cannot: the pricing, guards, coupon rule, and baker handler are pure
+       functions, called directly with no host, no database, and no mocks. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\experiments\after-marten\LayerCake.Slices.Marten\LayerCake.Slices.Marten.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+</Project>

@@ -250,3 +250,66 @@ Test host (outside every count): `tests/LayerCake.ContractTests.CleanTemplate/` 
 Scaffold snapshot as generated, before any feature code (`.cs` per project, excluding bin/obj): src/AppHost 2, src/Application 33, src/Domain 12, src/Infrastructure 11, src/ServiceDefaults 1, src/Shared 1, src/Web 16 (src total 76); tests/Application.FunctionalTests 14, tests/Application.UnitTests 3, tests/Domain.UnitTests 1, tests/Infrastructure.IntegrationTests 1, tests/TestAppHost 1 (total 96).
 
 Line counts (this file's method applied to `experiments/before-clean-template/src`, all `.cs` excluding obj/bin, no migrations exist): as generated 2,340 raw / 1,882 non-blank in 76 files; with slice 001 and ping 2,635 / 2,116 in 86 files. The nine feature files alone are 236 raw / 185 non-blank; the eight edits add 39 raw / 33 non-blank; ping is 20 / 16.
+
+## After twin on EF Core (2026-09-09, Erik's call): the rows above describe the Marten twin
+
+The core after twin moved from Marten documents to EF Core through Wolverine's EF Core integration, so both twins share the ORM and the database engine and only the architecture and the mediator differ. The Marten twin moved intact to `experiments/after-marten/LayerCake.Slices.Marten` and still runs the same scenarios (`tests/LayerCake.ContractTests.Marten`, 27/27) and the same unit facts (`tests/LayerCake.Slices.Marten.Tests`, 15/15); both are outside `LayerCake.slnx`, like the template experiment. Narrative in `docs/build-log.md` (2026-09-09).
+
+**Every after-twin per-slice file list above still holds path for path, and so does every per-slice count.** The same feature files, in the same folders, with the same names; only what is inside them changed. That is the number a slide quotes:
+
+| Feature | Before twin | After twin (Marten) | After twin (EF Core) |
+|---|---|---|---|
+| 001 Publish and browse cakes | 19 created, 4 edited | 5 created, 1 edited | 5 created, 1 edited |
+| 002 Validate coupon | 13 created, 4 edited | 3 created, 2 edited | 3 created, 2 edited |
+| 003 Place order | 26 created, 6 edited | 6 created, none edited | 6 created, none edited |
+| 004 Notify the baker over RabbitMQ | 8 created, 6 edited | none created, 1 edited | none created, 1 edited |
+
+**"Edited zero existing files" on the order slice survives the move, by design.** `src/after/LayerCake.Slices/LayerCakeDbContext.cs` has no `DbSet` properties and no per-entity mapping in it: it sets the `after` default schema and calls `ApplyConfigurationsFromAssembly`. Each table configures itself in its own feature file next to the type it maps (`Cakes/Cake.cs` carries `Cake` and `CakeTable`, and so on), and endpoints reach for `db.Set<T>()`. Adding a feature therefore adds files and edits nothing, which is exactly what the Marten document store gave for free. The before twin's `LayerCakeDbContext.cs` is edited by three of the four slices; the after twin's by none.
+
+After twin, scaffold `.cs` file created by the move (outside every slice count, the same way `Program.cs`, `AfterTwin.cs` and `Ping.cs` are):
+- src/after/LayerCake.Slices/LayerCakeDbContext.cs (23 raw / 20 non-blank)
+
+There is no migrations folder in the after twin and so nothing to exclude as generated code: `opts.UseEntityFrameworkCoreWolverineManagedMigrations()` plus `builder.Services.AddResourceSetupOnStartup()` means Weasel builds the tables this DbContext describes, and Wolverine's own envelope tables, when the host starts. The before twin keeps its EF Core migrations, and those 4 generated files stay excluded as before.
+
+Whole-twin line counts re-run 2026-09-09 (same method: all `.cs` under `src/before` excluding `obj/` and `Persistence/Migrations/`; all `.cs` under `src/after` excluding `obj/`):
+
+| | raw | non-blank | `.cs` files |
+|---|---|---|---|
+| Before twin | 2,140 | 1,775 | unchanged |
+| After twin, EF Core (current) | **844** | **707** | 18 |
+| After twin, Marten (now the experiment) | 703 | 581 | 17 |
+
+Before twin unchanged; nothing under `src/before` was touched. After twin +141 raw / +126 non-blank, measured file by file against the Marten twin:
+
+| file | Marten | EF Core | delta |
+|---|---|---|---|
+| LayerCakeDbContext.cs | (none) | 23 / 20 | +23 / +20 |
+| Cakes/Cake.cs | 18 / 13 | 41 / 33 | +23 / +20 |
+| Coupons/Coupon.cs | 21 / 16 | 29 / 23 | +8 / +7 |
+| Orders/Order.cs | 44 / 31 | 70 / 55 | +26 / +24 |
+| Orders/BakerTask.cs | 17 / 13 | 30 / 24 | +13 / +11 |
+| Orders/NotifyBaker.cs | 22 / 19 | 45 / 40 | +23 / +21 |
+| SeedData.cs | 48 / 40 | 66 / 56 | +18 / +16 |
+| Program.cs | 99 / 80 | 98 / 80 | -1 / +0 |
+| the four read paths | 260 / 222 | 268 / 229 | +8 / +7 |
+| unchanged (AfterTwin, Ping, GetCake, PublishCake, CouponValidation, GetOrder) | | | 0 / 0 |
+
+What that says, since a slide may want it in one sentence: the bootstrap is a wash (`Program.cs` is one line SHORTER on EF Core; four registration calls replace `AddMarten(...).IntegrateWithWolverine().UseLightweightSessions()`), and essentially the whole +141 is the price of telling a relational store what a document store infers. The four `IEntityTypeConfiguration<T>` blocks that now sit in their feature files (`CakeTable`, `CouponTable`, `OrderTable`, `BakerTaskTable`) are +70 / +62 of it. `NotifyBaker.cs` is +23 / +21: the `AddBakerTask` side effect replaces a one-line `Storage.Store<BakerTask>` return and has to check for redelivery, where identity-keyed upsert made that free. `SeedData.cs` is +18 / +16 for the same reason on the coupon seeds. The endpoints themselves barely moved: `PublishCake.cs`, `GetCake.cs`, `GetOrder.cs` and `CouponValidation.cs` are byte-identical, and the four read paths cost +8 raw between them for `db.Set<T>().AsNoTracking()`.
+
+One behaviour note that belongs with the numbers, not buried in the build log: Wolverine's `Storage.Store<T>` is an upsert against Marten but generates `// No explicit update necessary with EF Core without a Version property` against EF Core, so it silently does nothing for a new row. That is why `NotifyBakerHandler` returns an `ISideEffect` rather than a storage action, and why it carries `[Transactional]` (the handler takes no DbContext, so `AutoApplyTransactions` has nothing to notice). The handler stays a pure function returning a value, which is what the unit test asserts on.
+
+The ratio the scorecard slide quotes moves from about 3.0x to about **2.5x** (raw 2,140 vs 844; non-blank 1,775 vs 707). The Marten twin's 703 / 581 is now an experiment number and does not belong on the scorecard.
+
+DbContext callers, for the "how many places touch persistence" slide: **9 methods in 7 files** take `LayerCakeDbContext` as a parameter, or **8 in 6** counting feature code only (that is, excluding `SeedData.ApplyAsync`).
+
+- src/after/LayerCake.Slices/Cakes/BrowseCakes.cs:13 `Get`
+- src/after/LayerCake.Slices/Cakes/PublishCake.cs:36 `ValidateAsync`, :57 `Post`
+- src/after/LayerCake.Slices/Coupons/ValidateCoupon.cs:25 `Get`
+- src/after/LayerCake.Slices/Orders/GetBakerTasks.cs:21 `Get`
+- src/after/LayerCake.Slices/Orders/NotifyBaker.cs:16 `AddBakerTask.ExecuteAsync`
+- src/after/LayerCake.Slices/Orders/PlaceOrder.cs:57 `LoadAsync`, :128 `Post`
+- src/after/LayerCake.Slices/SeedData.cs:14 `ApplyAsync`
+
+Two further references are not parameters and are not methods: the registration at `Program.cs:38` and the scope resolve at `SeedData.cs:62`. `GetCake` and `GetOrder` take no DbContext at all; `[Entity(Required = true, OnMissing = OnMissing.ProblemDetailsWith404)]` resolves them against it.
+
+The Marten twin, for reference, is unchanged at `experiments/after-marten/LayerCake.Slices.Marten` (17 `.cs` files, 703 raw / 581 non-blank) and belongs to no count above. Its test projects (`tests/LayerCake.ContractTests.Marten`, 2 files; `tests/LayerCake.Slices.Marten.Tests`, 4 files) belong to no count either.

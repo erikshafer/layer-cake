@@ -1,16 +1,14 @@
-// [Identity] lives in the JasperFx namespace since the JasperFx 2.0 line
-// (Marten 9); it is no longer Marten.Schema.IdentityAttribute.
-using JasperFx;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace LayerCake.Slices.Coupons;
 
 /// <summary>
-/// A discount coupon. The uppercase code IS the document identity, so a
-/// case-insensitive lookup is one ToUpperInvariant plus a straight load.
+/// A discount coupon. The uppercase code IS the primary key, so a
+/// case-insensitive lookup is one ToUpperInvariant plus a straight read.
 /// </summary>
 public class Coupon
 {
-    [Identity]
     public string Code { get; set; } = string.Empty;
 
     public int PercentOff { get; set; }
@@ -18,4 +16,14 @@ public class Coupon
     public DateTimeOffset StartsAt { get; set; }
 
     public DateTimeOffset ExpiresAt { get; set; }
+}
+
+public class CouponTable : IEntityTypeConfiguration<Coupon>
+{
+    public void Configure(EntityTypeBuilder<Coupon> builder)
+    {
+        builder.ToTable("coupons");
+        builder.HasKey(c => c.Code);
+        builder.Property(c => c.Code).HasMaxLength(50);
+    }
 }

@@ -1,19 +1,17 @@
 using JasperFx;
-using JasperFx.Resources;
 using LayerCake.Slices;
+using LayerCake.Slices.Cakes;
 using LayerCake.Slices.Orders;
-using Microsoft.EntityFrameworkCore;
+using Marten;
+using Marten.Schema;
+using Weasel.Core;
 using Wolverine;
 using Wolverine.CritterWatch;
-using Wolverine.EntityFrameworkCore;
 using Wolverine.Http;
-using Wolverine.Postgresql;
+using Wolverine.Marten;
 using Wolverine.RabbitMQ;
 
 var builder = WebApplication.CreateBuilder(args);
-
-var connectionString = builder.Configuration.GetConnectionString("Postgres")
-    ?? "Host=localhost;Port=5432;Database=layercake;Username=postgres;Password=postgres";
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -21,27 +19,34 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddWolverineHttp();
 builder.Services.AddCors();
 
-// Weasel builds the tables this DbContext describes, and Wolverine's own
-// envelope tables, when the host starts. No migrations folder in this twin.
-builder.Services.AddResourceSetupOnStartup();
+builder.Services.AddMarten(opts =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("Postgres")
+        ?? "Host=localhost;Port=5432;Database=layercake;Username=postgres;Password=postgres";
+
+    opts.Connection(connectionString);
+
+    // The "after" schema: both twins share one PostgreSQL database without
+    // touching each other. The database engine never changes; only the idiom.
+    opts.DatabaseSchemaName = "after";
+
+    // Explicit camelCase for the stored JSON so what lands in mt_doc_* reads
+    // the same as the wire contract (the JSON is exhibit material on a slide).
+    opts.UseSystemTextJsonForSerialization(casing: Casing.CamelCase);
+
+    // The before twin enforces cake-name uniqueness with an EF Core unique
+    // index; this is the Marten counterpart so the 409 guard in PublishCake is
+    // backed by the database on both twins, not just a check-then-insert.
+    opts.Schema.For<Cake>().UniqueIndex(UniqueIndexType.Computed, x => x.Name);
+})
+.IntegrateWithWolverine()
+.UseLightweightSessions();
 
 builder.Host.UseWolverine(opts =>
 {
     opts.Discovery.IncludeAssembly(typeof(AfterTwin).Assembly);
-    opts.ServiceName = "LayerCake";
-
-    // The same EF Core the before twin uses, registered Wolverine's way: the
-    // DbContext options become a singleton, the transactional middleware
-    // commits for the handlers, and the durable outbox writes its envelopes
-    // through this same DbContext. The "after" schema keeps the twins apart
-    // in one database.
-    builder.Services.AddDbContextWithWolverineIntegration<LayerCakeDbContext>(
-        o => o.UseNpgsql(connectionString));
-
-    opts.PersistMessagesWithPostgresql(connectionString, "after");
-    opts.UseEntityFrameworkCoreTransactions();
-    opts.UseEntityFrameworkCoreWolverineManagedMigrations();
     opts.Policies.AutoApplyTransactions();
+    opts.ServiceName = "LayerCake";
 
     // The broker is part of the app now, not just the telemetry channel.
     // AutoProvision declares the queue on startup; the contract suite points
@@ -51,7 +56,7 @@ builder.Host.UseWolverine(opts =>
 
     // The cascaded NotifyBaker goes to RabbitMQ. UseDurableOutbox keeps it an
     // outbox message: the envelope is written to the Wolverine table in the
-    // SAME EF Core transaction as the order and sent to the broker after the
+    // SAME Marten transaction as the order and sent to the broker after the
     // commit, replayed after a crash, delivered at least once. Without this
     // line "no order without a baker task" only holds while the process stays up.
     opts.PublishMessage<NotifyBaker>()
@@ -75,12 +80,6 @@ builder.Host.UseWolverine(opts =>
     }
 });
 
-// Registered after Wolverine so it starts after the schema exists.
-if (builder.Environment.IsDevelopment())
-{
-    builder.Services.AddHostedService<SeedOnStartup>();
-}
-
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -91,6 +90,8 @@ if (app.Environment.IsDevelopment())
 
     app.UseSwagger();
     app.UseSwaggerUI();
+
+    await SeedData.ApplyAsync(app.Services.GetRequiredService<IDocumentStore>());
 }
 
 app.MapWolverineEndpoints();

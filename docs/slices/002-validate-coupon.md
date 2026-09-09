@@ -1,5 +1,8 @@
 # Slice 002 — ValidateCoupon
 
+> **Note (2026-09-09):** this spec's after-twin passages describe the Marten implementation, which now lives at `experiments/after-marten/`. The core after twin runs the same slices on EF Core through Wolverine; the HTTP contract, the scenario list and the required before-twin structure below are unchanged. See the 2026-09-09 entry in `docs/build-log.md`.
+
+
 **Why this slice is in the talk:** the Railway Oriented Programming act. Three ordered checks (exists → active window → expiry) producing a four-status discriminated answer, on date mechanics alone. The after twin shows ROP as Wolverine idioms (ordered guards, declarative flow), NOT explicit Result types (no `IResult` mystery meat, no `OneOf<>`; see CLAUDE.md non-negotiable 4). The validation logic here is also the shared function PlaceOrder reuses (slice 003), which is the repo's answer to "how do slices share logic?"
 
 CritterMart source design: Orders `ValidateCoupon` (four-status discriminated answer, ordered checks).

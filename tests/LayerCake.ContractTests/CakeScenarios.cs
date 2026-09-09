@@ -1,11 +1,12 @@
 using System.Text.Json;
 using Alba;
-using LayerCake.Infrastructure.Persistence;
-using Marten;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using Shouldly;
 using Xunit;
+using AfterDb = LayerCake.Slices.LayerCakeDbContext;
+using BeforeDb = LayerCake.Infrastructure.Persistence.LayerCakeDbContext;
 
 namespace LayerCake.ContractTests;
 
@@ -217,7 +218,7 @@ public sealed class BeforeTwinCakes : CakeScenarios, IClassFixture<BeforeHostFix
         // The DbContext, not the repository: the handler's ExistsWithNameAsync
         // check lives beside the repository, and this must bypass it.
         using var scope = Host.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<LayerCakeDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<BeforeDb>();
 
         dbContext.Cakes.Add(new LayerCake.Domain.Entities.Cake
         {
@@ -246,12 +247,12 @@ public sealed class AfterTwinCakes : CakeScenarios, IClassFixture<AfterHostFixtu
 
     protected override async Task InsertCakeDirectlyAsync(string name)
     {
-        // A plain session outside any Wolverine handler, so ValidateAsync
+        // The DbContext outside any Wolverine endpoint, so ValidateAsync
         // never runs and only the unique index stands in the way.
-        var store = Host.Services.GetRequiredService<IDocumentStore>();
-        await using var session = store.LightweightSession();
+        using var scope = Host.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AfterDb>();
 
-        session.Store(new LayerCake.Slices.Cakes.Cake
+        db.Add(new LayerCake.Slices.Cakes.Cake
         {
             Id = Guid.NewGuid(),
             Name = name,
@@ -260,6 +261,6 @@ public sealed class AfterTwinCakes : CakeScenarios, IClassFixture<AfterHostFixtu
             PublishedAt = DateTimeOffset.UtcNow
         });
 
-        await session.SaveChangesAsync();
+        await db.SaveChangesAsync();
     }
 }
