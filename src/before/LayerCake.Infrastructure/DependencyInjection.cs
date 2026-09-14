@@ -1,11 +1,13 @@
 using LayerCake.Application.Common.Interfaces;
 using LayerCake.Infrastructure.Messaging;
+using LayerCake.Infrastructure.Payments;
 using LayerCake.Infrastructure.Persistence;
 using LayerCake.Infrastructure.Repositories;
 using LayerCake.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace LayerCake.Infrastructure;
 
@@ -34,8 +36,7 @@ public static class DependencyInjection
         // Slice 004: the broker adapter behind IMessagePublisher. The queue
         // name comes from the RabbitMq section; the URI from ConnectionStrings
         // so it sits beside Postgres in appsettings and in the test fixture.
-        // Bound by hand: the section binder lives in a package this project
-        // does not reference, and the freeze allows no third addition.
+        // Bound by hand, key by key, so each setting's source reads here.
         services.Configure<RabbitMqOptions>(options =>
         {
             options.ConnectionUri = configuration.GetConnectionString("RabbitMq") ?? options.ConnectionUri;
@@ -45,6 +46,29 @@ public static class DependencyInjection
         // One connection per host; the container disposes it with the host.
         services.AddSingleton<RabbitMqConnection>();
         services.AddSingleton<IMessagePublisher, RabbitMqMessagePublisher>();
+
+        // Slice 005: the card vendor adapter behind IPaymentGateway, bound by
+        // hand like the broker settings. A typed client: IHttpClientFactory
+        // hands TendrPaymentGateway an HttpClient with the base address and
+        // timeout already set. The timeout is the whole resilience story; no
+        // retry, no circuit breaker.
+        services.Configure<TendrOptions>(options =>
+        {
+            options.BaseUrl = configuration[$"{TendrOptions.SectionName}:BaseUrl"] ?? options.BaseUrl;
+
+            if (int.TryParse(configuration[$"{TendrOptions.SectionName}:TimeoutSeconds"], out var timeoutSeconds))
+            {
+                options.TimeoutSeconds = timeoutSeconds;
+            }
+        });
+
+        services.AddHttpClient<IPaymentGateway, TendrPaymentGateway>((serviceProvider, client) =>
+        {
+            var options = serviceProvider.GetRequiredService<IOptions<TendrOptions>>().Value;
+
+            client.BaseAddress = new Uri(options.BaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
+        });
 
         return services;
     }

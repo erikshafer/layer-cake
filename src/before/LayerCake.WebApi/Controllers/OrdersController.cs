@@ -25,6 +25,8 @@ public sealed class OrdersController : ControllerBase
     [ProducesResponseType(typeof(OrderDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(StatusCodes.Status402PaymentRequired)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public async Task<ActionResult<OrderDto>> Place(PlaceOrderCommand command, CancellationToken cancellationToken)
     {
         var order = await _sender.Send(command, cancellationToken);

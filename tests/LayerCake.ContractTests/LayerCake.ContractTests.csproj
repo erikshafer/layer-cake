@@ -9,6 +9,9 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\before\LayerCake.WebApi\LayerCake.WebApi.csproj" />
     <ProjectReference Include="..\..\src\after\LayerCake.Slices\LayerCake.Slices.csproj" />
+    <!-- Slice 005: the card vendor both twins call, hosted on Kestrel per
+         twin collection so the call crosses a real socket. -->
+    <ProjectReference Include="..\..\src\tendr\Tendr\Tendr.csproj" />
   </ItemGroup>
 
   <ItemGroup>

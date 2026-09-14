@@ -27,8 +27,9 @@
   table { border-collapse: collapse; width: 100%; }
   td, th { padding: 2px 10px 2px 0; text-align: left; vertical-align: top; }
   .num { text-align: right; }
-  input { background: #17130E; color: #ECE6DB; border: 1px solid #3A3225; font: inherit;
+  input, select { background: #17130E; color: #ECE6DB; border: 1px solid #3A3225; font: inherit;
           padding: 3px 6px; width: 130px; }
+  select { width: auto; }
   input.qty { width: 70px; }
   button { background: #2B2417; color: #ECE6DB; border: 1px solid #3A3225; font: inherit;
            padding: 3px 14px; cursor: pointer; }
@@ -87,6 +88,13 @@
       <h2>4. Place an order</h2>
       <table><tbody id="order-rows"></tbody></table>
       <input id="order-coupon" placeholder="coupon (optional)">
+      <select id="order-card">
+        <option value="">Pay at pickup</option>
+        <option value="4242 4242 4242 4242">Pay now: 4242 (approves)</option>
+        <option value="4000 0000 0000 0002">Pay now: 0002 (card_declined)</option>
+        <option value="4000 0000 0000 9995">Pay now: 9995 (insufficient_funds)</option>
+        <option value="1234 5678 9012 3456">Pay now: 3456 (unknown_card)</option>
+      </select>
       <button onclick="placeOrder()">Place order</button>
       <div id="order-result"></div>
     </section>
@@ -116,9 +124,10 @@
   const coral = t => '<p class="err">' + esc(t) + '</p>';
   const unreachable = () => 'not reachable at ' + twin.base;
   const problem = r => (r.json && (r.json.detail || r.json.title)) || ('HTTP ' + r.status);
-  const REASONS = { 200: 'OK', 201: 'Created', 400: 'Bad Request', 404: 'Not Found',
-                    405: 'Method Not Allowed', 409: 'Conflict', 415: 'Unsupported Media Type',
-                    422: 'Unprocessable Entity', 500: 'Internal Server Error' };
+  const REASONS = { 200: 'OK', 201: 'Created', 400: 'Bad Request', 402: 'Payment Required',
+                    404: 'Not Found', 405: 'Method Not Allowed', 409: 'Conflict',
+                    415: 'Unsupported Media Type', 422: 'Unprocessable Entity',
+                    500: 'Internal Server Error', 503: 'Service Unavailable' };
 
   // The single wire helper: every request the page makes goes through here,
   // and every request updates the wire pane. There is no second code path.
@@ -225,6 +234,9 @@
     const body = { lines };
     const cc = $('order-coupon').value.trim();
     if (cc) body.couponCode = cc;
+    // Slice 005: a test card from Tendr's table, or no card at all (pickup).
+    const card = $('order-card').value;
+    if (card) body.card = { number: card };
     const r = await call('POST', '/orders', body);
     if (r.down) { $('order-result').innerHTML = coral(unreachable()); return; }
     if (r.status !== 201) { $('order-result').innerHTML = coral(problem(r)); return; }
@@ -236,6 +248,8 @@
       '<tr><td>discount' + (o.couponCode ? ' (' + esc(o.couponCode) + ')' : '') +
         '</td><td colspan="3" class="num">' + money(o.discount) + '</td></tr>' +
       '<tr><td><b>total</b></td><td colspan="3" class="num"><b>' + money(o.total) + '</b></td></tr>' +
+      '<tr><td>payment</td><td colspan="3" class="num">' +
+        (o.payment ? esc(o.payment.status) + ' by card' : 'at pickup') + '</td></tr>' +
       '</tbody></table><p>order <a href="#" onclick="call(\'GET\', \'/orders/' + o.id +
         '\'); return false">' + o.id + '</a></p>';
     bakerPoll(o.id);

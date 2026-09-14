@@ -67,46 +67,63 @@ public sealed class RabbitMqContainerFixture : IAsyncLifetime
 /// sequentially: each class fixture resets that twin's schema and re-seeds,
 /// and parallel hosts would race on startup migrations and seed data.
 /// The two collections still run in parallel with each other, each on its
-/// own database and broker containers, so the twins never touch each
-/// other's data or consume each other's messages.
+/// own database and broker containers and its own Tendr host, so the twins
+/// never touch each other's data or consume each other's messages.
 /// </summary>
 [CollectionDefinition(Name)]
-public sealed class BeforeTwinCollection : ICollectionFixture<PostgresContainerFixture>, ICollectionFixture<RabbitMqContainerFixture>
+public sealed class BeforeTwinCollection :
+    ICollectionFixture<PostgresContainerFixture>,
+    ICollectionFixture<RabbitMqContainerFixture>,
+    ICollectionFixture<TendrHostFixture>
 {
     public const string Name = "before twin";
 }
 
 [CollectionDefinition(Name)]
-public sealed class AfterTwinCollection : ICollectionFixture<PostgresContainerFixture>, ICollectionFixture<RabbitMqContainerFixture>
+public sealed class AfterTwinCollection :
+    ICollectionFixture<PostgresContainerFixture>,
+    ICollectionFixture<RabbitMqContainerFixture>,
+    ICollectionFixture<TendrHostFixture>
 {
     public const string Name = "after twin";
 }
 
 /// <summary>
 /// Boots the before twin (Clean Architecture, EF Core + MediatR) for a test
-/// class against the collection's containers, applies the EF Core migrations,
-/// then resets the "before" schema and re-seeds so every scenario class
-/// starts from the same three-cake catalog.
+/// class against the collection's containers and Tendr host, applies the EF
+/// Core migrations, then resets the "before" schema and re-seeds so every
+/// scenario class starts from the same three-cake catalog.
 /// </summary>
-public sealed class BeforeHostFixture : IAsyncLifetime
+public class BeforeHostFixture : IAsyncLifetime
 {
     private readonly PostgresContainerFixture _postgres;
     private readonly RabbitMqContainerFixture _rabbitMq;
 
-    public BeforeHostFixture(PostgresContainerFixture postgres, RabbitMqContainerFixture rabbitMq)
+    public BeforeHostFixture(PostgresContainerFixture postgres, RabbitMqContainerFixture rabbitMq, TendrHostFixture tendr)
     {
         _postgres = postgres;
         _rabbitMq = rabbitMq;
+        Tendr = tendr;
     }
 
     public IAlbaHost Host { get; private set; } = null!;
 
+    public TendrHostFixture Tendr { get; }
+
+    /// <summary>
+    /// Where this host finds its card vendor: the collection's Tendr host.
+    /// </summary>
+    protected virtual Task<string> TendrBaseUrlAsync() => Tendr.StartAsync(_postgres.ConnectionString);
+
     public async Task InitializeAsync()
     {
+        var tendrBaseUrl = await TendrBaseUrlAsync();
+
         Host = await AlbaHost.For<BeforeTwin>(x =>
         {
             x.UseSetting("ConnectionStrings:Postgres", _postgres.ConnectionString);
             x.UseSetting("ConnectionStrings:RabbitMq", _rabbitMq.ConnectionString);
+            x.UseSetting("Tendr:BaseUrl", tendrBaseUrl);
         });
 
         using var scope = Host.Services.CreateScope();
@@ -132,32 +149,58 @@ public sealed class BeforeHostFixture : IAsyncLifetime
 }
 
 /// <summary>
-/// Boots the after twin (vertical slices, Wolverine + EF Core) for a test
-/// class against the collection's containers. Wolverine builds the "after"
-/// schema as the host starts, so the fixture only has to wipe the tables
-/// and re-seed.
+/// The before twin with its card vendor down: Tendr:BaseUrl points at a
+/// closed port. Everything else is the ordinary before host.
 /// </summary>
-public sealed class AfterHostFixture : IAsyncLifetime
+public sealed class BeforeOutageHostFixture : BeforeHostFixture
+{
+    public BeforeOutageHostFixture(PostgresContainerFixture postgres, RabbitMqContainerFixture rabbitMq, TendrHostFixture tendr)
+        : base(postgres, rabbitMq, tendr)
+    {
+    }
+
+    protected override Task<string> TendrBaseUrlAsync() => Task.FromResult(TendrHostFixture.ClosedPortUrl);
+}
+
+/// <summary>
+/// Boots the after twin (vertical slices, Wolverine + EF Core) for a test
+/// class against the collection's containers and Tendr host. Wolverine
+/// builds the "after" schema as the host starts, so the fixture only has to
+/// wipe the tables and re-seed.
+/// </summary>
+public class AfterHostFixture : IAsyncLifetime
 {
     private readonly PostgresContainerFixture _postgres;
     private readonly RabbitMqContainerFixture _rabbitMq;
 
-    public AfterHostFixture(PostgresContainerFixture postgres, RabbitMqContainerFixture rabbitMq)
+    public AfterHostFixture(PostgresContainerFixture postgres, RabbitMqContainerFixture rabbitMq, TendrHostFixture tendr)
     {
         _postgres = postgres;
         _rabbitMq = rabbitMq;
+        Tendr = tendr;
     }
 
     public IAlbaHost Host { get; private set; } = null!;
 
+    public TendrHostFixture Tendr { get; }
+
+    /// <summary>
+    /// Where this host finds its card vendor: the collection's Tendr host.
+    /// </summary>
+    protected virtual Task<string> TendrBaseUrlAsync() => Tendr.StartAsync(_postgres.ConnectionString);
+
     public async Task InitializeAsync()
     {
-        Host = await AlbaHost.For<AfterTwin>(x =>
+        var tendrBaseUrl = await TendrBaseUrlAsync();
+
+        // Built through the gate: Tendr is also a Wolverine host in this process.
+        Host = await WolverineHostGate.BuildAsync(typeof(AfterTwin).Assembly, () => AlbaHost.For<AfterTwin>(x =>
         {
             x.UseSetting("ConnectionStrings:Postgres", _postgres.ConnectionString);
             // Configuration keys are case-insensitive, so this also satisfies
             // the after twin's lowercase "rabbitmq" read.
             x.UseSetting("ConnectionStrings:RabbitMq", _rabbitMq.ConnectionString);
+            x.UseSetting("Tendr:BaseUrl", tendrBaseUrl);
 
             x.ConfigureServices(services =>
             {
@@ -168,7 +211,7 @@ public sealed class AfterHostFixture : IAsyncLifetime
                 // null sender would make the exactly-one-task scenario vacuous.
                 services.RunWolverineInSoloMode();
             });
-        });
+        }));
 
         using var scope = Host.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AfterDb>();
@@ -187,4 +230,18 @@ public sealed class AfterHostFixture : IAsyncLifetime
     {
         await Host.DisposeAsync();
     }
+}
+
+/// <summary>
+/// The after twin with its card vendor down: Tendr:BaseUrl points at a
+/// closed port. Everything else is the ordinary after host.
+/// </summary>
+public sealed class AfterOutageHostFixture : AfterHostFixture
+{
+    public AfterOutageHostFixture(PostgresContainerFixture postgres, RabbitMqContainerFixture rabbitMq, TendrHostFixture tendr)
+        : base(postgres, rabbitMq, tendr)
+    {
+    }
+
+    protected override Task<string> TendrBaseUrlAsync() => Task.FromResult(TendrHostFixture.ClosedPortUrl);
 }

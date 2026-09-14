@@ -3,14 +3,16 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using LayerCake.Slices.Cakes;
 using LayerCake.Slices.Coupons;
+using LayerCake.Slices.Payments;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Wolverine.Attributes;
 using Wolverine.Http;
 
 namespace LayerCake.Slices.Orders;
 
-public record PlaceOrder(List<PlaceOrderLine>? Lines, string? CouponCode);
+public record PlaceOrder(List<PlaceOrderLine>? Lines, string? CouponCode, Card? Card = null);
 
 public record PlaceOrderLine(Guid CakeId, int Quantity);
 
@@ -33,10 +35,12 @@ public record PlacedOrder(
     decimal Total,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     string? CouponCode,
-    DateTimeOffset PlacedAt) : IHttpAware
+    DateTimeOffset PlacedAt,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    Payment? Payment) : IHttpAware
 {
     public static PlacedOrder From(Order order)
-        => new(order.Id, order.Lines, order.Subtotal, order.Discount, order.Total, order.CouponCode, order.PlacedAt);
+        => new(order.Id, order.Lines, order.Subtotal, order.Discount, order.Total, order.CouponCode, order.PlacedAt, order.Payment);
 
     public static void PopulateMetadata(MethodInfo method, EndpointBuilder builder)
         => builder.Metadata.Add(new ProducesResponseTypeMetadata(201, typeof(PlacedOrder), ["application/json"]));
@@ -124,10 +128,66 @@ public static class PlaceOrderEndpoint
         return WolverineContinue.NoProblems;
     }
 
-    [WolverinePost("/orders")]
-    public static (PlacedOrder, NotifyBaker) Post(PlaceOrder command, PlaceOrderData data, LayerCakeDbContext db)
+    // The second rung on the load leg. The vendor needs the total, and the total
+    // is the decision's, so Decide runs here; Post only stores what this returns.
+    // No card, no call: the bakery takes payment at pickup. Wolverine finds
+    // Load, Before and Validate by name; any other rung needs [WolverineBefore],
+    // and rungs run in the order they are declared.
+    [WolverineBefore]
+    public static async Task<(Order, Payment?)> AuthorizeAsync(
+        PlaceOrder command,
+        PlaceOrderData data,
+        TendrClient tendr,
+        CancellationToken ct)
     {
         var order = Decide(command.Lines!, data.Cakes, data.Coupon, DateTimeOffset.UtcNow);
+
+        if (command.Card is null)
+        {
+            return (order, null);
+        }
+
+        try
+        {
+            var authorization = await tendr.AuthorizeAsync(order.Id, order.Total, command.Card.Number, ct);
+
+            return (order, new Payment(authorization.Id, authorization.Status, authorization.Reason));
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
+        {
+            // Tendr refused the connection or ran past the client's two-second
+            // timeout. An exception escaping here would be a bare 500, so the
+            // outage becomes a value and the guard below answers for it.
+            return (order, new Payment(order.Id, "unavailable", null));
+        }
+    }
+
+    // Guard 4: a card that was sent must have been approved. 402, because it is
+    // the customer's card that failed, not the request's shape; 503 when the
+    // vendor never answered.
+    public static ProblemDetails Validate(Payment? payment)
+    {
+        if (payment is { Status: "declined" })
+        {
+            return new ProblemDetails { Detail = $"Card declined: {payment.Reason}.", Status = 402 };
+        }
+
+        if (payment is { Status: "unavailable" })
+        {
+            return new ProblemDetails { Detail = "The payment service did not answer.", Status = 503 };
+        }
+
+        return WolverineContinue.NoProblems;
+    }
+
+    // The command stays first although Post never reads it: Wolverine.Http
+    // takes the request body's type from the endpoint method's own
+    // parameters, and every rung above needs the body.
+    [WolverinePost("/orders")]
+    public static (PlacedOrder, NotifyBaker) Post(PlaceOrder command, Order order, Payment? payment, LayerCakeDbContext db)
+    {
+        order.PaymentStatus = payment?.Status ?? "atPickup";
+        order.PaymentAuthorizationId = payment?.AuthorizationId;
 
         db.Add(order);
 

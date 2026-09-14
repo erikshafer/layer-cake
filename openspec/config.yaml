@@ -18,7 +18,10 @@ context: |
   publish-browse-cakes, validate-coupon, place-order, plus slice 004
   (notify-baker-over-rabbitmq, amended by Erik 2026-09-05), which extends
   place-order's side effect onto a real RabbitMQ broker in both twins without
-  adding an endpoint. Behavior is fully settled in docs/slices/001-004
+  adding an endpoint, and slice 005 (pay-with-tendr, v1.1, Erik 2026-09-14),
+  which extends place-order's load leg with an optional card authorized by
+  Tendr, a fake vendor host in src/tendr. Behavior is fully settled in
+  docs/slices/001-005
   (contract clauses, required before-twin structure, after-twin shape,
   scenario lists, seeds). Derive every change
   artifact from those specs; do not re-litigate settled decisions, and route
@@ -30,7 +33,7 @@ context: |
 
   Workflow: one change per slice, named slice-001-publish-browse-cakes,
   slice-002-validate-coupon, slice-003-place-order,
-  slice-004-notify-baker-over-rabbitmq. OpenSpec is adopted thin
+  slice-004-notify-baker-over-rabbitmq, slice-005-pay-with-tendr. OpenSpec is adopted thin
   here: task checklists and an archive trail, not re-planning.
 
 # Per-artifact rules.

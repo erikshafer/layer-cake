@@ -313,3 +313,93 @@ DbContext callers, for the "how many places touch persistence" slide: **9 method
 Two further references are not parameters and are not methods: the registration at `Program.cs:38` and the scope resolve at `SeedData.cs:62`. `GetCake` and `GetOrder` take no DbContext at all; `[Entity(Required = true, OnMissing = OnMissing.ProblemDetailsWith404)]` resolves them against it.
 
 The Marten twin, for reference, is unchanged at `experiments/after-marten/LayerCake.Slices.Marten` (17 `.cs` files, 703 raw / 581 non-blank) and belongs to no count above. Its test projects (`tests/LayerCake.ContractTests.Marten`, 2 files; `tests/LayerCake.Slices.Marten.Tests`, 4 files) belong to no count either.
+
+## 005 Pay with Tendr (recorded 2026-09-14)
+
+Same conventions as 001 and 004: "created" counts `.cs` source files created for the slice; earlier-slice or scaffold `.cs` files edited to wire it in are listed separately; non-`.cs` wiring (`.csproj`, `appsettings.json`) is listed but stays outside the count; EF Core migration output (`20260914194246_AddOrderPayment.cs`, its `.Designer.cs`, and the model snapshot edit) is excluded as generated code. Line figures are raw / non-blank. Spec: `docs/slices/005-pay-with-tendr.md`; decisions: `docs/build-log.md` (2026-09-14).
+
+Before twin (11 files created, 184 / 157):
+- src/before/LayerCake.Domain/Enums/PaymentStatus.cs (11 / 10)
+- src/before/LayerCake.Application/Common/Interfaces/IPaymentGateway.cs (17 / 15)
+- src/before/LayerCake.Application/Common/Exceptions/PaymentDeclinedException.cs (16 / 14)
+- src/before/LayerCake.Application/Common/Exceptions/PaymentUnavailableException.cs (14 / 13)
+- src/before/LayerCake.Application/Payments/PaymentAuthorization.cs (7 / 6)
+- src/before/LayerCake.Application/Payments/CardRequest.cs (7 / 6)
+- src/before/LayerCake.Application/Orders/PaymentDto.cs (12 / 10)
+- src/before/LayerCake.Infrastructure/Payments/TendrPaymentGateway.cs (63 / 52)
+- src/before/LayerCake.Infrastructure/Payments/TendrOptions.cs (13 / 10)
+- src/before/LayerCake.Infrastructure/Payments/TendrAuthorizationRequest.cs (11 / 9)
+- src/before/LayerCake.Infrastructure/Payments/TendrAuthorizationResponse.cs (13 / 12)
+
+Two of the eleven go beyond the hand-off's list, each on in-repo precedent: `PaymentStatus.cs` (a status in the Domain is an enum, like `CouponStatus`) and `PaymentDto.cs` (a nested DTO gets its own file, like `OrderLineDto`). Without them the count would be 9.
+
+Before twin, earlier-slice `.cs` files edited (8, +81 / +70):
+- src/before/LayerCake.Domain/Entities/Order.cs (`PaymentStatus`, `PaymentAuthorizationId`; +6 / +4)
+- src/before/LayerCake.Application/Orders/Commands/PlaceOrder/PlaceOrderCommand.cs (`CardRequest? Card`; +2 / +2)
+- src/before/LayerCake.Application/Orders/Commands/PlaceOrder/PlaceOrderCommandHandler.cs (`IPaymentGateway` injected, eight dependencies; authorize after decide, throw on decline, set the payment fields; +17 / +15)
+- src/before/LayerCake.Application/Orders/OrderDto.cs (`PaymentDto? Payment`, omitted when null; +4 / +3)
+- src/before/LayerCake.Application/Common/Mappings/OrderMappingProfile.cs (flat columns to the nested DTO; +7 / +7)
+- src/before/LayerCake.Infrastructure/DependencyInjection.cs (options bound by hand, `AddHttpClient<IPaymentGateway, TendrPaymentGateway>`; the slice 004 comment that said the configuration binder was out of reach corrected; +24 / +20)
+- src/before/LayerCake.WebApi/Filters/ApiExceptionFilterAttribute.cs (402 and 503 mappings; +19 / +17)
+- src/before/LayerCake.WebApi/Controllers/OrdersController.cs (documents 402 and 503; +2 / +2)
+
+`OrderConfiguration.cs` is not edited: EF Core maps both new properties by convention (the enum as an integer, so existing rows default to `AtPickup` = 0).
+
+Before twin, non-`.cs` wiring (outside the count, 2):
+- src/before/LayerCake.Infrastructure/LayerCake.Infrastructure.csproj (`FrameworkReference Microsoft.AspNetCore.App`, for `Microsoft.Extensions.Http`; not a package)
+- src/before/LayerCake.WebApi/appsettings.json (`Tendr:BaseUrl`)
+
+After twin (1 file created, 64 / 54):
+- src/after/LayerCake.Slices/Payments/Tendr.cs (`TendrClient`, the wire records `AuthorizeCard`, `Card`, `CardAuthorization`, and the twin's own `Payment`)
+
+After twin, earlier-slice `.cs` files edited (3, +92 / +80):
+- src/after/LayerCake.Slices/Orders/PlaceOrder.cs (`Card` on the command, `Payment` on the response, `[WolverineBefore] AuthorizeAsync`, `Validate(Payment?)`, `Post` storing what the rungs returned; `LoadAsync`, the three-guard `Validate`, and `Decide` untouched; +60 / +53)
+- src/after/LayerCake.Slices/Orders/Order.cs (two stored columns, a computed `Payment` for the wire, the column default that keeps the startup migration from dropping the table; +17 / +14)
+- src/after/LayerCake.Slices/Program.cs (`AddHttpClient<TendrClient>` and `AlwaysUseServiceLocationFor<TendrClient>()`; +15 / +13)
+
+After twin, non-`.cs` wiring (outside the count, 1):
+- src/after/LayerCake.Slices/appsettings.json (`Tendr:BaseUrl`)
+
+`NotifyBaker.cs`, `GetOrder.cs`, `LayerCakeDbContext.cs` and the outbox lines in `Program.cs` are untouched. The DbContext is still edited by no slice.
+
+Tendr, the vendor (outside both counts; 6 `.cs` files, 305 / 251 including the HTTP transport commit, 262 / 213 before it):
+- src/tendr/Tendr/Program.cs (65 / 51; was 59 / 46 before `MapWolverineHttpTransportEndpoints()`)
+- src/tendr/Tendr/TendrApi.cs (7 / 6)
+- src/tendr/Tendr/Ping.cs (13 / 11)
+- src/tendr/Tendr/Authorizations/Authorization.cs (42 / 30: the three events and the aggregate)
+- src/tendr/Tendr/Authorizations/AuthorizeCard.cs (164 / 141: command, response, endpoint, the test-card table, and `AuthorizeCardHandler` sharing the endpoint's `Invalid` and `Start`; was 127 / 108 before the transport commit)
+- src/tendr/Tendr/Authorizations/GetAuthorization.cs (14 / 12)
+- plus Tendr.csproj, appsettings.json, Properties/launchSettings.json, README.md (67 lines)
+
+Shared contract suite and tests (outside every count):
+- tests/LayerCake.ContractTests/PaymentScenarios.cs (created, 329 lines: six scenarios plus the `OrderProbe` helper they share with the outage class)
+- tests/LayerCake.ContractTests/PaymentOutageScenarios.cs (created, 79 lines: two scenarios)
+- tests/LayerCake.ContractTests/TendrHost.cs (created, 113 lines: Tendr on Kestrel per twin collection)
+- tests/LayerCake.ContractTests/WolverineHostGate.cs (created, 45 lines: one Wolverine host build at a time, see the build log)
+- tests/LayerCake.ContractTests/TwinHosts.cs (edited: third collection fixture, `Tendr:BaseUrl` into both hosts, the outage fixtures, the after host built through the gate)
+- tests/LayerCake.ContractTests/LayerCake.ContractTests.csproj (edited: project reference to Tendr)
+- tests/LayerCake.Slices.Tests/PaymentGuardTests.cs (created, 48 lines: four facts)
+- tests/Tendr.Tests/ (new project in the slnx: `TendrFixture.cs`, `AuthorizeCardScenarios.cs`, `DecideTests.cs`, `HttpTransportFacts.cs` (125 lines, the transport commit), csproj)
+
+No existing scenario file changed: `CakeScenarios.cs`, `CouponScenarios.cs`, `OrderScenarios.cs`, `PingScenarios.cs`, `ProblemDetailsAssertions.cs` and `PlaceOrderTests.cs` have no diff, so both experiments' bindings are untouched (`tests/LayerCake.ContractTests.Marten` still 27/27, `tests/LayerCake.ContractTests.CleanTemplate` still 6/10).
+
+The per-feature table, extended:
+
+| Feature | Before twin | After twin (EF Core) |
+|---|---|---|
+| 001 Publish and browse cakes | 19 created, 4 edited | 5 created, 1 edited |
+| 002 Validate coupon | 13 created, 4 edited | 3 created, 2 edited |
+| 003 Place order | 26 created, 6 edited | 6 created, none edited |
+| 004 Notify the baker over RabbitMQ | 8 created, 6 edited | none created, 1 edited |
+| 005 Pay with Tendr | 11 created, 8 edited | 1 created, 3 edited |
+
+Whole-twin line counts re-run 2026-09-14 after slice 005 (same method as 2026-09-09: all `.cs` under `src/before` excluding `obj/` and `Persistence/Migrations/`; all `.cs` under `src/after` excluding `obj/`; the method was first re-run against `3fb503d` and reproduced 2,140 / 1,775 and 844 / 707 exactly):
+
+| | raw | non-blank | `.cs` files |
+|---|---|---|---|
+| Before twin | **2,405** (was 2,140; +265) | **2,002** (was 1,775; +227) | 86 (was 75) |
+| After twin | **1,000** (was 844; +156) | **841** (was 707; +134) | 19 (was 18) |
+
+The ratio moves from about 2.5x to about **2.4x** (raw 2,405 vs 1,000; non-blank 2,002 vs 841). Tendr's 305 / 251 belongs to neither side. The Marten experiment is unchanged at 703 / 581 and does not get slice 005.
+
+DbContext callers, updating the 2026-09-09 list for slide 4.2: unchanged at **9 methods in 7 files**, or **8 in 6** counting feature code only. `PlaceOrder.cs` still has two (`LoadAsync` now at line 59, `Post` at line 187); the new `AuthorizeAsync` takes a `TendrClient`, not the DbContext.

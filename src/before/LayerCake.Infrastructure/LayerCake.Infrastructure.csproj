@@ -4,6 +4,14 @@
     <ProjectReference Include="..\LayerCake.Application\LayerCake.Application.csproj" />
   </ItemGroup>
 
+  <!-- Slice 005: the typed HttpClient behind IPaymentGateway comes from
+       Microsoft.Extensions.Http, which ships in the ASP.NET Core shared
+       framework the WebApi already runs on. A framework reference, not a
+       package, so nothing new to pin. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />

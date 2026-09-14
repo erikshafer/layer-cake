@@ -5,7 +5,8 @@ namespace LayerCake.Application.Orders;
 /// <summary>
 /// The shape the Application layer hands to the presentation layer for both
 /// the placement response and the read-back. CouponCode stays null when no
-/// coupon was sent, and null means absent on the wire.
+/// coupon was sent, Payment stays null when the order is paid at pickup, and
+/// null means absent on the wire.
 /// </summary>
 public sealed record OrderDto
 {
@@ -23,4 +24,7 @@ public sealed record OrderDto
     public string? CouponCode { get; init; }
 
     public DateTimeOffset PlacedAt { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public PaymentDto? Payment { get; init; }
 }

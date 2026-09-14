@@ -65,6 +65,25 @@ public sealed class ApiExceptionFilterAttribute : ExceptionFilterAttribute
                 });
                 break;
 
+            case PaymentDeclinedException paymentDeclinedException:
+                Handle(context, new ProblemDetails
+                {
+                    Status = StatusCodes.Status402PaymentRequired,
+                    Title = "The card was declined.",
+                    Detail = paymentDeclinedException.Message
+                });
+                break;
+
+            case PaymentUnavailableException paymentUnavailableException:
+                _logger.LogWarning(paymentUnavailableException.InnerException, "Payment service unavailable for {Path}", context.HttpContext.Request.Path);
+                Handle(context, new ProblemDetails
+                {
+                    Status = StatusCodes.Status503ServiceUnavailable,
+                    Title = "The payment service is unavailable.",
+                    Detail = paymentUnavailableException.Message
+                });
+                break;
+
             default:
                 // Anything unmapped (a DbUpdateException from a length constraint,
                 // a lost unique-index race) still answers as problem+json rather
