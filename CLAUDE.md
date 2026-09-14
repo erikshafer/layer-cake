@@ -21,7 +21,7 @@ This file is the routing layer for AI sessions: the non-negotiables, the build o
 dotnet build              # one solution, both twins + the CritterWatch console
 dotnet test               # the money shot: identical scenarios, green twice (Docker running is the only prerequisite; Testcontainers starts PostgreSQL AND RabbitMQ per twin, and a Tendr host per twin runs on Kestrel against that twin's PostgreSQL); also runs the after-twin-only pure-function unit tests in tests/LayerCake.Slices.Tests and Tendr's own tests in tests/Tendr.Tests (one more PostgreSQL container)
 dotnet test tests/Tendr.Tests/Tendr.Tests.csproj
-                          # Tendr, the card vendor, on its own: its API scenarios and the test-card table
+                          # Tendr, the card vendor, on its own: its API scenarios, the test-card table, and one InvokeAsync fact over Wolverine's HTTP transport
 dotnet run --project src/tendr/Tendr
                           # Tendr live on 42040; both twins call it for any order that carries a card
 dotnet test tests/LayerCake.ContractTests.Marten/LayerCake.ContractTests.Marten.csproj

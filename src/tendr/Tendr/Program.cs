@@ -6,6 +6,7 @@ using Tendr;
 using Tendr.Authorizations;
 using Wolverine;
 using Wolverine.Http;
+using Wolverine.Http.Transport;
 using Wolverine.Marten;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -55,5 +56,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapWolverineEndpoints();
+
+// Wolverine's own HTTP transport beside the REST endpoints: a Wolverine app
+// can send AuthorizeCard as a message to /_wolverine/invoke and get the
+// CardAuthorization back as the reply. Neither twin uses it.
+app.MapWolverineHttpTransportEndpoints();
 
 return await app.RunJasperFxCommands(args);

@@ -362,12 +362,12 @@ After twin, non-`.cs` wiring (outside the count, 1):
 
 `NotifyBaker.cs`, `GetOrder.cs`, `LayerCakeDbContext.cs` and the outbox lines in `Program.cs` are untouched. The DbContext is still edited by no slice.
 
-Tendr, the vendor (outside both counts; 6 `.cs` files, 262 / 213):
-- src/tendr/Tendr/Program.cs (59 / 46)
+Tendr, the vendor (outside both counts; 6 `.cs` files, 305 / 251 including the HTTP transport commit, 262 / 213 before it):
+- src/tendr/Tendr/Program.cs (65 / 51; was 59 / 46 before `MapWolverineHttpTransportEndpoints()`)
 - src/tendr/Tendr/TendrApi.cs (7 / 6)
 - src/tendr/Tendr/Ping.cs (13 / 11)
 - src/tendr/Tendr/Authorizations/Authorization.cs (42 / 30: the three events and the aggregate)
-- src/tendr/Tendr/Authorizations/AuthorizeCard.cs (127 / 108: command, response, endpoint, the test-card table)
+- src/tendr/Tendr/Authorizations/AuthorizeCard.cs (164 / 141: command, response, endpoint, the test-card table, and `AuthorizeCardHandler` sharing the endpoint's `Invalid` and `Start`; was 127 / 108 before the transport commit)
 - src/tendr/Tendr/Authorizations/GetAuthorization.cs (14 / 12)
 - plus Tendr.csproj, appsettings.json, Properties/launchSettings.json, README.md (67 lines)
 
@@ -379,7 +379,7 @@ Shared contract suite and tests (outside every count):
 - tests/LayerCake.ContractTests/TwinHosts.cs (edited: third collection fixture, `Tendr:BaseUrl` into both hosts, the outage fixtures, the after host built through the gate)
 - tests/LayerCake.ContractTests/LayerCake.ContractTests.csproj (edited: project reference to Tendr)
 - tests/LayerCake.Slices.Tests/PaymentGuardTests.cs (created, 48 lines: four facts)
-- tests/Tendr.Tests/ (new project in the slnx: `TendrFixture.cs`, `AuthorizeCardScenarios.cs`, `DecideTests.cs`, csproj)
+- tests/Tendr.Tests/ (new project in the slnx: `TendrFixture.cs`, `AuthorizeCardScenarios.cs`, `DecideTests.cs`, `HttpTransportFacts.cs` (125 lines, the transport commit), csproj)
 
 No existing scenario file changed: `CakeScenarios.cs`, `CouponScenarios.cs`, `OrderScenarios.cs`, `PingScenarios.cs`, `ProblemDetailsAssertions.cs` and `PlaceOrderTests.cs` have no diff, so both experiments' bindings are untouched (`tests/LayerCake.ContractTests.Marten` still 27/27, `tests/LayerCake.ContractTests.CleanTemplate` still 6/10).
 
@@ -400,6 +400,6 @@ Whole-twin line counts re-run 2026-09-14 after slice 005 (same method as 2026-09
 | Before twin | **2,405** (was 2,140; +265) | **2,002** (was 1,775; +227) | 86 (was 75) |
 | After twin | **1,000** (was 844; +156) | **841** (was 707; +134) | 19 (was 18) |
 
-The ratio moves from about 2.5x to about **2.4x** (raw 2,405 vs 1,000; non-blank 2,002 vs 841). Tendr's 262 / 213 belongs to neither side. The Marten experiment is unchanged at 703 / 581 and does not get slice 005.
+The ratio moves from about 2.5x to about **2.4x** (raw 2,405 vs 1,000; non-blank 2,002 vs 841). Tendr's 305 / 251 belongs to neither side. The Marten experiment is unchanged at 703 / 581 and does not get slice 005.
 
 DbContext callers, updating the 2026-09-09 list for slide 4.2: unchanged at **9 methods in 7 files**, or **8 in 6** counting feature code only. `PlaceOrder.cs` still has two (`LoadAsync` now at line 59, `Post` at line 187); the new `AuthorizeAsync` takes a `TendrClient`, not the DbContext.

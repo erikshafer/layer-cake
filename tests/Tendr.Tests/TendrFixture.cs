@@ -17,6 +17,8 @@ public sealed class TendrFixture : IAsyncLifetime
 
     public IAlbaHost Host { get; private set; } = null!;
 
+    public string ConnectionString => _postgres.GetConnectionString();
+
     public async Task InitializeAsync()
     {
         await _postgres.StartAsync();

@@ -272,7 +272,7 @@ experiments/
 tests/
   LayerCake.ContractTests/           one Alba suite, both hosts, 35 scenarios x 2 (a Tendr host per twin)
   LayerCake.Slices.Tests/            19 pure-function facts against the after twin only: no host, no database, no mocks
-  Tendr.Tests/                       the vendor's own API scenarios and test-card facts
+  Tendr.Tests/                       the vendor's own API scenarios, test-card facts, and one request/reply over Wolverine's HTTP transport
   LayerCake.ContractTests.Marten/    the same 27 scenarios against the Marten experiment; its own project, outside the solution
   LayerCake.Slices.Marten.Tests/    the Marten experiment's 15 pure-function facts; outside the solution
   LayerCake.ContractTests.CleanTemplate/  the cake and ping scenarios against the template host; its own project, outside the solution

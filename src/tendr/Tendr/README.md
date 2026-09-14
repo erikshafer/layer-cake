@@ -41,6 +41,10 @@ The first request with a key answers `201 Created` with `Location: /v1/authoriza
 
 `pong`.
 
+### Wolverine's HTTP transport
+
+Tendr also maps Wolverine's own HTTP transport endpoints (`/_wolverine/batch/{queue}` and `/_wolverine/invoke`), so a Wolverine application can send `AuthorizeCard` as a message and get the `CardAuthorization` back as the reply to `InvokeAsync<CardAuthorization>`. The envelope id stands in for the `Idempotency-Key` header, and the message runs the same rules as the REST call. A real vendor would not offer this and neither twin uses it; `tests/Tendr.Tests/HttpTransportFacts.cs` is the proof that it works. On the pinned Wolverine 6.30.0 the transport only resolves `https://` URLs (plain `http://` arrives in 6.34.0), which is why that test serves Tendr over HTTPS with a throwaway certificate.
+
 ## Test cards
 
 The whole list. Spaces are optional.
