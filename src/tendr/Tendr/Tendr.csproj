@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- Tendr, the card vendor both twins call from PlaceOrder (slice 005). A
+       fake third party that lives in this repo so the call crosses a real
+       socket in the live demo and in the contract suite. Not a twin, not in
+       the scorecard, event-sourced on Marten on purpose. Every package here
+       is already pinned for the twins or the Marten experiment. -->
+  <ItemGroup>
+    <PackageReference Include="WolverineFx.Http" />
+    <PackageReference Include="WolverineFx.Marten" />
+    <PackageReference Include="Marten" />
+    <!-- Dynamic codegen needs the Roslyn runtime compiler in Wolverine 6; see
+         the same reference in LayerCake.Slices.csproj for the production story. -->
+    <PackageReference Include="WolverineFx.RuntimeCompilation" />
+    <PackageReference Include="Swashbuckle.AspNetCore" />
+  </ItemGroup>
+
+</Project>

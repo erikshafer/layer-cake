@@ -2,6 +2,7 @@ using JasperFx;
 using JasperFx.Resources;
 using LayerCake.Slices;
 using LayerCake.Slices.Orders;
+using LayerCake.Slices.Payments;
 using Microsoft.EntityFrameworkCore;
 using Wolverine;
 using Wolverine.CritterWatch;
@@ -21,6 +22,15 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddWolverineHttp();
 builder.Services.AddCors();
 
+// The card vendor. Base address from configuration; the contract suite points
+// this at its own Tendr host through the same setting. A two-second timeout
+// is the whole resilience story on both twins; see docs/slices/005.
+builder.Services.AddHttpClient<TendrClient>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["Tendr:BaseUrl"] ?? "http://localhost:42040");
+    client.Timeout = TimeSpan.FromSeconds(2);
+});
+
 // Weasel builds the tables this DbContext describes, and Wolverine's own
 // envelope tables, when the host starts. No migrations folder in this twin.
 builder.Services.AddResourceSetupOnStartup();
@@ -29,6 +39,11 @@ builder.Host.UseWolverine(opts =>
 {
     opts.Discovery.IncludeAssembly(typeof(AfterTwin).Assembly);
     opts.ServiceName = "LayerCake";
+
+    // IHttpClientFactory builds the typed client through a factory lambda that
+    // Wolverine's codegen cannot see into, and Wolverine 6 refuses to resolve
+    // such a service from the container unless the type is named here.
+    opts.CodeGeneration.AlwaysUseServiceLocationFor<TendrClient>();
 
     // The same EF Core the before twin uses, registered Wolverine's way: the
     // DbContext options become a singleton, the transactional middleware

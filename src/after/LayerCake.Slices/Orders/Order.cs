@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using LayerCake.Slices.Payments;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -26,6 +27,17 @@ public class Order
     public string? CouponCode { get; set; }
 
     public DateTimeOffset PlacedAt { get; set; }
+
+    // "atPickup" or "approved". Stored, never on the wire: the wire carries
+    // Payment below, and only when a card was sent.
+    [JsonIgnore]
+    public string PaymentStatus { get; set; } = "atPickup";
+
+    [JsonIgnore]
+    public Guid? PaymentAuthorizationId { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Payment? Payment => PaymentAuthorizationId is { } id ? new Payment(id, PaymentStatus, null) : null;
 }
 
 /// <summary>
@@ -55,6 +67,11 @@ public class OrderTable : IEntityTypeConfiguration<Order>
         builder.Property(o => o.Discount).HasPrecision(10, 2);
         builder.Property(o => o.Total).HasPrecision(10, 2);
         builder.Property(o => o.CouponCode).HasMaxLength(50);
+        // The database default is what lets Weasel add this NOT NULL column to
+        // an orders table that already has rows. Without it, the schema
+        // migration at startup drops and recreates the table instead.
+        builder.Property(o => o.PaymentStatus).HasMaxLength(20).HasDefaultValue("atPickup");
+        builder.Ignore(o => o.Payment);
 
         // The lines belong to the order and are never queried on their own, so
         // they stay one jsonb column instead of a child table with a foreign

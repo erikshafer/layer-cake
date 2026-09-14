@@ -21,3 +21,7 @@ Thumbs.db
 ## Local environment
 *.local.json
 .env
+
+## Wolverine codegen output (the after twin runs Dynamic codegen; a `codegen write`
+## capture lands here and would be compiled into the project if kept)
+src/after/LayerCake.Slices/Internal/Generated/

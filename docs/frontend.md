@@ -37,6 +37,8 @@ One row per cake in the catalog (built from the Section 1 response, so the ids a
 
 On `201`, render the receipt: each line (name, quantity, unit price, line total), subtotal, discount, total, coupon code if present, and the order id as a link that runs `GET /orders/{id}` into the wire pane. On `400` or `422`, show the problem's `detail` in coral. Then start the baker poll (Section 5).
 
+**Added 2026-09-14 (slice 005, `docs/slices/005-pay-with-tendr.md`):** a select beside the coupon input, "Pay at pickup" by default, then one "Pay now" option per entry in Tendr's test-card table (`4242` approves, `0002` card_declined, `9995` insufficient_funds, `3456` unknown_card). Pay at pickup sends no `card` member at all; a Pay now option sends `card: { number }` with the number exactly as listed. The receipt gains a `payment` row: "approved by card" or "at pickup". A `402` or `503` shows its `detail` in coral like the other failures, so a declined card is one select away in a demo. The page never talks to Tendr itself; Tendr must be running (`dotnet run --project src/tendr/Tendr`) for a Pay now order to succeed, and stopping it shows the `503`.
+
 ### Section 5: the baker's board (`GET /baker/tasks`)
 
 A list: order id (short form, first 8 characters), summary, createdAt. Refresh button. Loads on page open and after every switch. After a successful order, poll `GET /baker/tasks?orderId={id}` every 250 ms for up to 5 seconds until a task for that order appears, then re-load the full board and highlight the new row. Same constants as the suite's scenario, so the page and the tests make the same promise. If the poll times out, say so in coral rather than silently stopping.
@@ -67,6 +69,7 @@ Auth, styling beyond legibility, a framework of any kind, a "run on both twins a
 3. Check `bday10`: valid, 10% off, code shown uppercased. `SUMMER25`: expired. `HOLIDAY30`: notYetActive. `NOPE`: invalid.
 4. Order 2x Chocolate Stout with `BDAY10`: 201, subtotal 68.00, discount 6.80, total 61.20. Order with `SUMMER25`: 422 with the status in the detail. Order with every quantity 0: 400. Order with one quantity 0 and one quantity 1: 400.
 5. After the successful order, the baker's board shows the new task within 5 seconds on both twins.
+5a. (Slice 005, with Tendr running.) Pay now with `0002`: 402, "Card declined: card_declined." With `9995`: 402, insufficient_funds. With `4242`: 201 and "approved by card". Pay at pickup: 201 and "at pickup". Stop Tendr and Pay now with `4242`: 503, "The payment service did not answer."
 6. The wire pane shows the same status, content type, and body shape for each step on both twins (the `Location` header is absolute on Before and relative on After; that is the one recorded divergence and it is fine).
 
 Then: `dotnet test` is still 52/52 (the CORS lines change nothing the suite sees), and CI is green.

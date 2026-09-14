@@ -15,6 +15,7 @@ public sealed class PlaceOrderCommandHandler : IRequestHandler<PlaceOrderCommand
     private readonly ICouponRepository _couponRepository;
     private readonly ICouponValidationService _couponValidationService;
     private readonly IOrderRepository _orderRepository;
+    private readonly IPaymentGateway _paymentGateway;
     private readonly IMessagePublisher _messagePublisher;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
@@ -24,6 +25,7 @@ public sealed class PlaceOrderCommandHandler : IRequestHandler<PlaceOrderCommand
         ICouponRepository couponRepository,
         ICouponValidationService couponValidationService,
         IOrderRepository orderRepository,
+        IPaymentGateway paymentGateway,
         IMessagePublisher messagePublisher,
         IUnitOfWork unitOfWork,
         IMapper mapper)
@@ -32,6 +34,7 @@ public sealed class PlaceOrderCommandHandler : IRequestHandler<PlaceOrderCommand
         _couponRepository = couponRepository;
         _couponValidationService = couponValidationService;
         _orderRepository = orderRepository;
+        _paymentGateway = paymentGateway;
         _messagePublisher = messagePublisher;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
@@ -104,6 +107,20 @@ public sealed class PlaceOrderCommandHandler : IRequestHandler<PlaceOrderCommand
             CouponCode = canonicalCode,
             PlacedAt = DateTimeOffset.UtcNow
         };
+
+        // Guard 4: a card that was sent must be approved (402 carrying the
+        // gateway's reason). No card, no call: the order is paid at pickup.
+        if (request.Card is not null)
+        {
+            var authorization = await _paymentGateway.AuthorizeAsync(order.Id, order.Total, request.Card.Number, cancellationToken);
+            if (!authorization.Approved)
+            {
+                throw new PaymentDeclinedException(authorization.DeclineReason);
+            }
+
+            order.PaymentStatus = PaymentStatus.Approved;
+            order.PaymentAuthorizationId = authorization.AuthorizationId;
+        }
 
         _orderRepository.Add(order);
 

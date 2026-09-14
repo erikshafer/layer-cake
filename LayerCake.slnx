@@ -11,9 +11,13 @@
   <Folder Name="/monitor/">
     <Project Path="src/monitor/LayerCake.CritterWatch/LayerCake.CritterWatch.csproj" />
   </Folder>
+  <Folder Name="/tendr/">
+    <Project Path="src/tendr/Tendr/Tendr.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/LayerCake.ContractTests/LayerCake.ContractTests.csproj" />
     <Project Path="tests/LayerCake.Slices.Tests/LayerCake.Slices.Tests.csproj" />
+    <Project Path="tests/Tendr.Tests/Tendr.Tests.csproj" />
   </Folder>
   <Folder Name="/solution items/">
     <File Path="README.md" />
@@ -34,5 +38,6 @@
     <File Path="docs/slices/001-publish-browse-cakes.md" />
     <File Path="docs/slices/002-validate-coupon.md" />
     <File Path="docs/slices/003-place-order.md" />
+    <File Path="docs/slices/005-pay-with-tendr.md" />
   </Folder>
 </Solution>

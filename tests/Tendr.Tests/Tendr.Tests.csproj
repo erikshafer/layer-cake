@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!-- Tendr's own API, tested on its own terms: the twins' contract suite
+       only sees Tendr through PlaceOrder, so replays, the 400s and the GET
+       are proven here. Marten on a throwaway PostgreSQL, like the twins. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\tendr\Tendr\Tendr.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Alba" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+</Project>

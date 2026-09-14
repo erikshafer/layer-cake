@@ -141,6 +141,12 @@ namespace LayerCake.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("LastModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("PaymentAuthorizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("PaymentStatus")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset>("PlacedAt")
                         .HasColumnType("timestamp with time zone");
 

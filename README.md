@@ -19,7 +19,7 @@ It is the companion repo for the KCDC 2026 talk **"How I Gave Up Clean Architect
 
 - [Quick start](#quick-start)
 - [What you are looking at](#what-you-are-looking-at)
-- [Three features and one message](#three-features-and-one-message)
+- [Three features, one message, one vendor](#three-features-one-message-one-vendor)
 - [The HTTP contract](#the-http-contract)
 - [Same feature, two shapes](#same-feature-two-shapes)
 - [The proof: one suite, two hosts](#the-proof-one-suite-two-hosts)
@@ -57,9 +57,9 @@ The talk makes a claim: the ceremony that Clean Architecture asks of a .NET code
 
 The after twin was originally written on Marten documents, and that version still exists and still passes the same scenarios (`experiments/after-marten/`). It was moved out of the solution the day before the talk for one reason: with a document store on one side, the honest answer to "what changed?" included the persistence library, and that is not what the talk is arguing about. What moves between the twins now is the architecture and the mediator. What is left confounded, and the talk says so, is the web framework: controllers plus MediatR on one side, Wolverine.Http on the other.
 
-## Three features and one message
+## Three features, one message, one vendor
 
-A bakery publishes cakes, shoppers browse them, check a coupon, and place an order; the baker gets a to-do entry for each order. Three features, each chosen because it showcases one claim, plus one extension that puts the third feature's side effect on a real broker.
+A bakery publishes cakes, shoppers browse them, check a coupon, and place an order, paying now by card or at pickup; the baker gets a to-do entry for each order. Three features, each chosen because it showcases one claim, plus two extensions of the third: one puts its side effect on a real broker, the other sends its card to an outside service.
 
 | # | Feature | What it demonstrates |
 |---|---|---|
@@ -67,8 +67,13 @@ A bakery publishes cakes, shoppers browse them, check a coupon, and place an ord
 | 2 | **Validate a coupon** | Railway-oriented flow. A coupon is `invalid`, `notYetActive`, `expired`, or `valid`, always as a 200 envelope. The evaluation is one shared function that the next feature reuses, which is the in-repo answer to "how do slices share logic?" |
 | 3 | **Place an order** | The A-Frame shape (load, decide purely, persist) and a reliable side effect: placing an order creates exactly one baker task. The after twin sends that through Wolverine's transactional outbox, written in the same EF Core transaction as the order, so no order without a task and no task without an order. |
 | 4 | **Notify the baker over RabbitMQ** (extends 3) | What one message costs each shape. The baker notification crosses a real RabbitMQ queue in both twins. The before twin adds a port, an adapter, a hosted consumer, and a re-dispatch through MediatR, and publishes after its commit with no outbox. The after twin changes `Program.cs` and nothing else. |
+| 5 | **Pay with Tendr** (extends 3) | What one call to an outside service costs each shape, and where the seam goes in a slice. An order may carry a card; both twins authorize the total with Tendr over HTTP before storing the order. The before twin adds a payment-gateway port in Application, a typed-client adapter with options and wire DTOs in Infrastructure, and two exceptions its filter maps to 402 and 503. The after twin adds one file (the typed client and its records) and, in `PlaceOrder.cs`, one more rung on the load leg and one more `Validate` guard. |
 
-Step 4 adds no endpoint and changes no contract; the scenario that already proved exactly one baker task now proves it across the broker. Same broker on both sides; only the idiom changes. It is recorded as slice 004 in `docs/slices/`.
+Step 4 adds no endpoint and changes no contract; the scenario that already proved exactly one baker task now proves it across the broker. Same broker on both sides; only the idiom changes. It is recorded as slice 004 in `docs/slices/`. Step 5 adds an optional `card` to the order and changes nothing for an order without one; it is slice 005.
+
+### The vendor
+
+Tendr (`src/tendr/Tendr`, port 42040) is a very small, fake card vendor that lives in this repo so the call from PlaceOrder is a real HTTP request over a real socket, live and in the contract suite, without a Stripe account. It takes an `Idempotency-Key` (both twins send the order id), answers from a four-entry test-card table (`4242 4242 4242 4242` approves; `4000 0000 0000 0002` and `4000 0000 0000 9995` decline; anything else is unknown), and keeps each authorization as a short event stream in Marten. It is not a twin, it is not counted anywhere, and how it is built is not part of the argument; [its README](src/tendr/Tendr/README.md) has the API. It shares the bakery's PostgreSQL database in its own `tendr` schema purely for convenience.
 
 Design notes for each feature, including the contract clauses, the required structure of each twin, and the scenario list, live in `docs/slices/`.
 
@@ -82,7 +87,7 @@ Both twins serve exactly this. Request and response bodies are camelCase JSON; f
 | `GET /cakes` | `200` array of cakes | |
 | `GET /cakes/{id}` | `200` cake | `404` |
 | `GET /coupons/{code}` | `200` always: `{ code, status }`, plus `percentOff` only when `status` is `valid` | never fails; an unknown code is `status: "invalid"` |
-| `POST /orders` | `201` + `Location: /orders/{id}`, body with priced lines, `subtotal`, `discount`, `total`, optional `couponCode`, `placedAt` | `400` empty lines or quantity below 1, `422` unknown cake ids (listed), `422` coupon not valid (status named) |
+| `POST /orders` | `201` + `Location: /orders/{id}`, body with priced lines, `subtotal`, `discount`, `total`, optional `couponCode`, `placedAt`, and `payment: { authorizationId, status }` only when a `card` was sent | in this order: `400` empty lines or quantity below 1, `422` unknown cake ids (listed), `422` coupon not valid (status named), `402` card declined (reason named); `503` when a card was sent and Tendr did not answer within two seconds |
 | `GET /orders/{id}` | `200` same shape as the POST body | `404` |
 | `GET /baker/tasks` | `200` array of `{ orderId, summary, createdAt }`, optional `?orderId=` filter | |
 
@@ -104,7 +109,8 @@ Seed data is identical on both sides: three cakes (Classic Yellow, Chocolate Sto
 | Validate coupon | 13 files created, 4 edited | 3 files created, 2 edited |
 | Place order | 26 files created, 6 edited | 6 files created, none edited |
 | Notify the baker over RabbitMQ | 8 files created, 6 edited | none created, 1 edited |
-| Whole twin, all C# source | 2,140 lines | 844 lines |
+| Pay with Tendr | 11 files created, 8 edited | 1 file created, 3 edited |
+| Whole twin, all C# source | 2,405 lines | 1,000 lines |
 
 The shortest way to feel the difference is to read one feature in both. Publishing a cake in the before twin touches:
 
@@ -173,13 +179,13 @@ Both twins are talking to the same EF Core, against the same PostgreSQL, with th
 
 ## The proof: one suite, two hosts
 
-`tests/LayerCake.ContractTests` is a single [Alba](https://jasperfx.github.io/alba/) + xUnit + Shouldly project. Every scenario is written once in an abstract class (`CakeScenarios`, `CouponScenarios`, `OrderScenarios`), and two sealed subclasses at the bottom of each file bind it to a host: one boots the Clean Architecture twin, one boots the vertical-slice twin. The test runner sees 27 scenarios twice, 54 runs, and every one of them must pass.
+`tests/LayerCake.ContractTests` is a single [Alba](https://jasperfx.github.io/alba/) + xUnit + Shouldly project. Every scenario is written once in an abstract class (`CakeScenarios`, `CouponScenarios`, `OrderScenarios`, `PaymentScenarios`, `PaymentOutageScenarios`), and two sealed subclasses at the bottom of each file bind it to a host: one boots the Clean Architecture twin, one boots the vertical-slice twin. The test runner sees 35 scenarios twice, 70 runs, and every one of them must pass.
 
-A second, smaller project, `tests/LayerCake.Slices.Tests`, exists for the after twin only. It has no host, no database, and no mocks: 15 facts call the pricing function, the guard chain, the coupon rule, and the baker handler directly and inspect what they return. It is not part of the parity proof. It is the exhibit for why the vertical-slice code is cheap to test, and `dotnet test` runs it alongside the contract suite.
+A second, smaller project, `tests/LayerCake.Slices.Tests`, exists for the after twin only. It has no host, no database, and no mocks: 19 facts call the pricing function, the guard chain (card guard included), the coupon rule, and the baker handler directly and inspect what they return. It is not part of the parity proof. It is the exhibit for why the vertical-slice code is cheap to test, and `dotnet test` runs it alongside the contract suite.
 
 ### The experimental hosts
 
-`experiments/` holds hosts that test a claim rather than ship a feature. Neither is in the solution, so `dotnet test` at the root is exactly the two-host proof above.
+`experiments/` holds hosts that test a claim rather than ship a feature. Neither is in the solution, so `dotnet test` at the root is exactly the two-host proof above, plus Tendr's own tests (`tests/Tendr.Tests`, which prove the vendor's API on its own terms and belong to neither twin).
 
 `experiments/after-marten/` is the after twin as it stood on Marten documents, kept intact and still green: same slices, same scenarios, a document store instead of an ORM. It is what the after twin looked like before the twins were put on one ORM so that only the architecture moved between them.
 
@@ -196,9 +202,9 @@ dotnet test tests/LayerCake.ContractTests.CleanTemplate/LayerCake.ContractTests.
 
 As committed it is 6 of 10 green, and that is the template as shipped, not a bug in the scenarios: the four error scenarios get the right status codes but the template's exception handler writes `application/json` instead of `application/problem+json`, and its 400 bodies drop the `errors` dictionary that names the failing field. One line in the template's handler makes it 10 of 10; the committed state leaves it as generated. For the same three endpoints the template touches 9 files created / 8 edited, against 19 / 4 for the before twin and 5 / 1 for the after twin. The file list is [the experiment section of the inventory](docs/file-inventory.md#experiment-slice-001-on-the-clean-architecture-solution-template-2026-09-06-branch-experimentbefore-clean-template-not-part-of-the-scorecard), and the narrative (package graph, the hop trace, why the four are red, the one-line fix) is the 2026-09-06 entry in `docs/build-log.md`. The experiment is outside the scorecard and outside the proof.
 
-The scenarios assert what the contract says, not what is convenient: exact status codes rather than "any 2xx", the `Location` header on creates, the raw body never containing `percentOff` unless the coupon is valid, the discount math to the cent, and that placing an order produces exactly one baker task. For that last one the suite polls the baker endpoint with a short timeout and does not know or care which twin does the work asynchronously.
+The scenarios assert what the contract says, not what is convenient: exact status codes rather than "any 2xx", the `Location` header on creates, the raw body never containing `percentOff` unless the coupon is valid or `payment` unless a card was sent, the discount math to the cent, that a bad coupon with a declining card fails on the coupon without the card ever reaching Tendr, and that placing an order produces exactly one baker task. For that last one the suite polls the baker endpoint with a short timeout and does not know or care which twin does the work asynchronously.
 
-Each twin gets its own PostgreSQL 17 and RabbitMQ 4 containers from Testcontainers, has its schema applied (EF Core migrations on the before twin, Wolverine-managed schema creation on the after twin), and is reset and reseeded per scenario class. The two twins run in parallel, and every scenario starts from the same three cakes and three coupons.
+Each twin gets its own PostgreSQL 17 and RabbitMQ 4 containers from Testcontainers, has its schema applied (EF Core migrations on the before twin, Wolverine-managed schema creation on the after twin), and is reset and reseeded per scenario class. Each twin also gets its own Tendr host, started on Kestrel at a free port against that twin's PostgreSQL container, so the card call crosses a socket without another container; the outage scenarios boot the twin pointed at a closed port instead. The two twins run in parallel, and every scenario starts from the same three cakes and three coupons.
 
 ## Running it live
 
@@ -206,9 +212,12 @@ The suite needs nothing but Docker, but to click around you want the twins runni
 
 ```bash
 docker compose up -d                                    # PostgreSQL 17 + RabbitMQ 4 (both twins use the broker)
+dotnet run --project src/tendr/Tendr                    # http://localhost:42040, the card vendor
 dotnet run --project src/before/LayerCake.WebApi        # http://localhost:42010
 dotnet run --project src/after/LayerCake.Slices         # http://localhost:42020
 ```
+
+Tendr is only needed for orders that carry a card; without it running, a card order answers 503 and an order without a card still goes through.
 
 Both twins apply their schema and seed data on startup in Development. Swagger UI is at `/swagger` on each. Both write to the one `layercake` database through EF Core: the before twin into the `before` schema via migrations, the after twin into the `after` schema via Wolverine's managed schema creation. `docker compose down -v` wipes everything.
 
@@ -224,7 +233,7 @@ Point it at `42010` instead and the demo page's Before switch drives it for cake
 
 ### The demo page
 
-`src/frontend/index.html` is one static HTML file: inline CSS and JS, no build step, no server. With both twins running, open it straight from disk. It walks the whole journey (browse, publish, coupon, order, baker's board) against either twin through a Before/After switch, with a wire pane showing every request and response so the identical contract is visible to a human. It is a demo surface, not part of the proof; the contract tests are the proof.
+`src/frontend/index.html` is one static HTML file: inline CSS and JS, no build step, no server. With both twins running, open it straight from disk. It walks the whole journey (browse, publish, coupon, order with pay-now or pay-at-pickup, baker's board) against either twin through a Before/After switch, with a wire pane showing every request and response so the identical contract is visible to a human. It is a demo surface, not part of the proof; the contract tests are the proof.
 
 ### The monitor (optional)
 
@@ -244,23 +253,26 @@ Then exercise the after twin (the demo page is the easy way) and open the consol
 src/
   before/                            the Clean Architecture twin
     LayerCake.Domain/                entities, enums, base classes
-    LayerCake.Application/           commands, queries, handlers, validators, DTOs, mapping profiles, interfaces (including the messaging port)
-    LayerCake.Infrastructure/        DbContext, EF configurations, migrations, repositories, services, the RabbitMQ publisher
+    LayerCake.Application/           commands, queries, handlers, validators, DTOs, mapping profiles, interfaces (including the messaging and payment ports)
+    LayerCake.Infrastructure/        DbContext, EF configurations, migrations, repositories, services, the RabbitMQ publisher, the Tendr payment gateway
     LayerCake.WebApi/                controllers, exception filter, the RabbitMQ consumer, Program.cs (port 42010)
   after/
     LayerCake.Slices/                the vertical-slice twin (port 42020)
       Cakes/                         Cake.cs (the entity and its table mapping) plus one file per feature: PublishCake.cs, BrowseCakes.cs, GetCake.cs
       Coupons/                       Coupon.cs, CouponValidation.cs (THE shared rule), ValidateCoupon.cs
       Orders/                        Order.cs, BakerTask.cs, PlaceOrder.cs, NotifyBaker.cs, GetOrder.cs, GetBakerTasks.cs
+      Payments/                      Tendr.cs (the typed client for the card vendor and its records)
       Ping.cs, SeedData.cs, LayerCakeDbContext.cs, Program.cs   (the DbContext has no DbSets and no mapping: every table configures itself in its feature file)
   frontend/index.html                the static demo page
   monitor/LayerCake.CritterWatch/    the optional monitoring console (port 42030)
+  tendr/Tendr/                       Tendr, the fake card vendor both twins call (port 42040); not a twin
 experiments/
   after-marten/                      the after twin as it stood on Marten documents; same slices, same scenarios, outside the solution and the scorecard
   before-clean-template/             the Clean Architecture Solution Template (dotnet new ca-sln) with slice 001 built its way; outside the solution and the scorecard
 tests/
-  LayerCake.ContractTests/           one Alba suite, both hosts, 27 scenarios x 2
-  LayerCake.Slices.Tests/            15 pure-function facts against the after twin only: no host, no database, no mocks
+  LayerCake.ContractTests/           one Alba suite, both hosts, 35 scenarios x 2 (a Tendr host per twin)
+  LayerCake.Slices.Tests/            19 pure-function facts against the after twin only: no host, no database, no mocks
+  Tendr.Tests/                       the vendor's own API scenarios and test-card facts
   LayerCake.ContractTests.Marten/    the same 27 scenarios against the Marten experiment; its own project, outside the solution
   LayerCake.Slices.Marten.Tests/    the Marten experiment's 15 pure-function facts; outside the solution
   LayerCake.ContractTests.CleanTemplate/  the cake and ping scenarios against the template host; its own project, outside the solution
@@ -286,6 +298,7 @@ docker-compose.yml                   PostgreSQL 17 + RabbitMQ 4 for running the 
 | Validation | FluentValidation via a MediatR pipeline behavior | Wolverine `Validate` methods returning `ProblemDetails` |
 | Mapping | AutoMapper 14.0.0 | none |
 | Messaging | `RabbitMQ.Client` publisher behind a port, `BackgroundService` consumer, no outbox | Wolverine's RabbitMQ transport with the durable outbox, configured in `Program.cs` |
+| Outside service | typed `HttpClient` adapter behind an `IPaymentGateway` port, options, wire DTOs, exceptions mapped to 402 and 503 | typed `HttpClient` as a method parameter on the order's load leg, a `Validate` guard for 402 and 503 |
 | Database | PostgreSQL 17 | PostgreSQL 17 |
 | Broker | RabbitMQ 4 | RabbitMQ 4 |
 | Tests | the shared Alba + xUnit + Shouldly suite | the same suite |
@@ -297,8 +310,9 @@ MediatR and AutoMapper are deliberately pinned at their final open-source releas
 It is a laboratory built for a talk, not a starter template and not a production system. Deliberately out of scope, because each one is a different talk:
 
 - Authentication and authorization.
-- Event sourcing. Both twins are state-stored. If the after twin makes you curious, that refactor is one step away: see [CritterMart](https://github.com/erikshafer/crittermart), which these features were lifted and simplified from.
-- Microservices, messaging between services, or anything beyond one deployable per twin. The one RabbitMQ message here leaves and re-enters the same process on each side.
+- Event sourcing. Both twins are state-stored. (Tendr, the fake vendor, keeps its authorizations as event streams, but it is a prop, not a twin.) If the after twin makes you curious, that refactor is one step away: see [CritterMart](https://github.com/erikshafer/crittermart), which these features were lifted and simplified from.
+- Microservices, messaging between services, or anything beyond one deployable per twin. The one RabbitMQ message here leaves and re-enters the same process on each side, and Tendr stands in for a third party, not a service of ours.
+- Real payments: no capture, refund, void, webhooks, retries, or card data kept by either twin.
 - A frontend framework or SPA. The demo page is a single static file and the talk never depends on it.
 
 It is also not a claim that Clean Architecture is never the right call, or that the Critter Stack is the only way to write slices. It is one honest before-and-after you can clone, run, and argue with.
