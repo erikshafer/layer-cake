@@ -38,6 +38,7 @@
     <File Path="docs/slices/001-publish-browse-cakes.md" />
     <File Path="docs/slices/002-validate-coupon.md" />
     <File Path="docs/slices/003-place-order.md" />
+    <File Path="docs/slices/004-notify-baker-over-rabbitmq.md" />
     <File Path="docs/slices/005-pay-with-tendr.md" />
   </Folder>
 </Solution>
