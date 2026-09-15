@@ -13,7 +13,7 @@ LayerCake is the same small bakery API written twice, side by side, in one .NET 
 
 One shared contract-test suite (`tests/LayerCake.ContractTests`) runs the exact same scenarios against both. If the suite is green twice, the two implementations behave identically. Everything else in the repo exists to make that comparison honest and easy to see for yourself. Both twins use EF Core against PostgreSQL, so the only things that change between them are the architecture and the mediator. Two further hosts sit outside the solution in `experiments/`, each running the same scenarios to test a claim rather than ship a feature. See [The proof](#the-proof-one-suite-two-hosts).
 
-It is the companion repo for the KCDC 2026 talk **"How I Gave Up Clean Architecture, and Why My Code Got Simpler"** by Erik Shafer (Kansas City, September 10-11, 2026). You do not need to have seen the talk to use it. Slides and a recording will be linked here when they exist.
+It is the companion repo for the talk **"How I Gave Up Clean Architecture, and Why My Code Got Simpler"** by Erik Shafer, first given at KCDC 2026 in Kansas City on September 10, 2026. The talk is headed for more user groups and conferences, and the repo keeps growing between runs: paying by card through Tendr (feature 5 below) was added after KCDC. You do not need to have seen the talk to use it. Slides and a recording will be linked here when they are published.
 
 ## Contents
 
@@ -42,7 +42,7 @@ dotnet build
 dotnet test
 ```
 
-`dotnet test` is the whole point of the repo. The suite starts a throwaway PostgreSQL 17 container per twin, migrates and seeds it, runs every scenario against the Clean Architecture host, runs the identical scenarios against the vertical-slice host, and tears both down. Since the baker notification crosses RabbitMQ on both twins, the suite starts a throwaway RabbitMQ 4 container per twin the same way. No compose step, no leftover state. The same command runs in CI on every push.
+`dotnet test` is the whole point of the repo. For each twin the suite starts a throwaway PostgreSQL 17 container and a throwaway RabbitMQ 4 container (the baker notification crosses a real broker on both sides), applies the schema and seeds it, and starts a copy of [Tendr](#the-vendor), the fake card vendor, on a free local port. It runs every scenario against the Clean Architecture host, runs the identical scenarios against the vertical-slice host, and tears it all down. It also runs the after twin's pure-function unit tests and Tendr's own tests. No compose step, no leftover state. The same command runs in CI on every push.
 
 Want to poke at the APIs in a browser instead? See [Running it live](#running-it-live).
 
@@ -55,7 +55,7 @@ The talk makes a claim: the ceremony that Clean Architecture asks of a .NET code
 3. **Both expose a byte-honest identical HTTP contract**, and one suite proves it. Exact status codes, explicit content types, camelCase JSON, 404 for missing resources, the same problem-details shape on failures.
 4. **Same database engine and the same ORM.** Both twins talk to PostgreSQL 17 through EF Core 10 and Npgsql, in the same `layercake` database when run live: the layered twin owns the `before` schema, the slice twin the `after` schema. The comparison is about code shape, not about swapping databases or data-access libraries.
 
-The after twin was originally written on Marten documents, and that version still exists and still passes the same scenarios (`experiments/after-marten/`). It was moved out of the solution the day before the talk for one reason: with a document store on one side, the honest answer to "what changed?" included the persistence library, and that is not what the talk is arguing about. What moves between the twins now is the architecture and the mediator. What is left confounded, and the talk says so, is the web framework: controllers plus MediatR on one side, Wolverine.Http on the other.
+The after twin was originally written on Marten documents, and that version still exists and still passes the same scenarios (`experiments/after-marten/`). It was moved out of the solution the day before KCDC for one reason: with a document store on one side, the honest answer to "what changed?" included the persistence library, and that is not what the talk is arguing about. What moves between the twins now is the architecture and the mediator. What is left confounded, and the talk says so, is the web framework: controllers plus MediatR on one side, Wolverine.Http on the other.
 
 ## Three features, one message, one vendor
 
@@ -90,6 +90,8 @@ Both twins serve exactly this. Request and response bodies are camelCase JSON; f
 | `POST /orders` | `201` + `Location: /orders/{id}`, body with priced lines, `subtotal`, `discount`, `total`, optional `couponCode`, `placedAt`, and `payment: { authorizationId, status }` only when a `card` was sent | in this order: `400` empty lines or quantity below 1, `422` unknown cake ids (listed), `422` coupon not valid (status named), `402` card declined (reason named); `503` when a card was sent and Tendr did not answer within two seconds |
 | `GET /orders/{id}` | `200` same shape as the POST body | `404` |
 | `GET /baker/tasks` | `200` array of `{ orderId, summary, createdAt }`, optional `?orderId=` filter | |
+
+The two request bodies: `POST /cakes` takes `{ name, description, price }`, and `POST /orders` takes `{ lines: [{ cakeId, quantity }], couponCode, card: { number } }`, where `couponCode` and `card` are optional. An order without a card is paid at pickup and never calls Tendr. The card numbers that approve and decline are in [Tendr's test-card table](src/tendr/Tendr/README.md#test-cards).
 
 Seed data is identical on both sides: three cakes (Classic Yellow, Chocolate Stout, Lemon Chiffon) and three coupons whose windows are relative to today so they never rot:
 
@@ -303,7 +305,7 @@ docker-compose.yml                   PostgreSQL 17 + RabbitMQ 4 for running the 
 | Broker | RabbitMQ 4 | RabbitMQ 4 |
 | Tests | the shared Alba + xUnit + Shouldly suite | the same suite |
 
-MediatR and AutoMapper are deliberately pinned at their final open-source releases, which is exactly where a lot of real layered codebases sit today. All versions were frozen before the talk's dry runs; the rationale for each pin is a comment in `Directory.Packages.props`.
+MediatR and AutoMapper are deliberately pinned at their final open-source releases, which is exactly where a lot of real layered codebases sit today. Versions were frozen before KCDC's dry runs and stay frozen between runs of the talk, so the comparison never drifts under a package update; the rationale for each pin, and for the few deliberate additions since, is a comment in `Directory.Packages.props`.
 
 ## What this repo is not
 
@@ -322,7 +324,8 @@ It is also not a claim that Clean Architecture is never the right call, or that 
 - `docs/slices/` for the design of each feature, and `docs/build-log.md` for every non-obvious decision made along the way.
 - [Wolverine](https://wolverinefx.net/), [Marten](https://martendb.io/), and [Alba](https://jasperfx.github.io/alba/) documentation.
 - [CritterMart](https://github.com/erikshafer/crittermart), the larger event-sourced system these slices come from.
-- The talk's slides and recording, to be linked here after KCDC.
+- Tendr's [README](src/tendr/Tendr/README.md), for the vendor's API and test cards.
+- The talk's slides and recording, linked here once they are published.
 
 ## Contributing
 
@@ -331,7 +334,7 @@ Issues and pull requests are welcome, especially from anyone who thinks the befo
 1. Both twins must keep passing the shared suite. `dotnet test` green twice is the bar for any change.
 2. A change to one twin that alters the HTTP contract needs the matching change in the other twin and in the scenarios.
 
-The before twin follows conventional Clean Architecture idioms (constructor injection, repository interfaces, DTO mapping). The after twin follows Critter Stack idioms (static endpoints, compound handlers, session as a method parameter, side effects as return values). That asymmetry is the exhibit, so please keep each side in its own style.
+The before twin follows conventional Clean Architecture idioms (constructor injection, repository interfaces, DTO mapping). The after twin follows Critter Stack idioms (static endpoints, compound handlers, the DbContext as a method parameter, side effects as return values). That asymmetry is the exhibit, so please keep each side in its own style.
 
 ## License
 

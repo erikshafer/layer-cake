@@ -2,9 +2,11 @@ schema: spec-driven
 
 # Project context, shown to AI when creating artifacts.
 context: |
-  LayerCake is the demo system for a KCDC 2026 conference talk (delivered
-  Sept 10-11, 2026). The talk is the deadline; when ceremony conflicts with
-  shipping the talk, shipping wins, explicitly and never silently.
+  LayerCake is the demo system for a conference talk first given at KCDC 2026
+  (2026-09-10) and headed for more user groups and conferences; the repo keeps
+  evolving between runs. The next delivery is the deadline; when ceremony
+  conflicts with shipping the talk, shipping wins, explicitly and never
+  silently.
 
   The repo is a laboratory: ONE solution, TWO implementations of the identical
   HTTP API, one shared Alba contract-test suite proving they behave the same.
@@ -13,19 +15,20 @@ context: |
   slices. .NET 10 / C# 14, PostgreSQL 17, one database, schemas "before" and
   "after". "dotnet test" green twice is the talk's most credible artifact.
 
-  CLAUDE.md is the build charter; read it before anything else. The slice
-  slate is LOCKED at three features, built per-slice end to end in this order:
+  CLAUDE.md is the build charter; read it before anything else. The talk's
+  features are LOCKED at three, built per-slice end to end in this order:
   publish-browse-cakes, validate-coupon, place-order, plus slice 004
   (notify-baker-over-rabbitmq, amended by Erik 2026-09-05), which extends
   place-order's side effect onto a real RabbitMQ broker in both twins without
   adding an endpoint, and slice 005 (pay-with-tendr, v1.1, Erik 2026-09-14),
   which extends place-order's load leg with an optional card authorized by
-  Tendr, a fake vendor host in src/tendr. Behavior is fully settled in
-  docs/slices/001-005
-  (contract clauses, required before-twin structure, after-twin shape,
-  scenario lists, seeds). Derive every change
-  artifact from those specs; do not re-litigate settled decisions, and route
-  surviving ambiguity to the author rather than assuming.
+  Tendr, a fake vendor host in src/tendr. All five are built and archived. A
+  new slice exists only by Erik's call and takes the next number. Behavior is
+  fully settled in its docs/slices/ spec (contract clauses, required
+  before-twin structure, after-twin shape, scenario lists, seeds), written
+  before the change is proposed. Derive every change artifact from that spec;
+  do not re-litigate settled decisions, and route surviving ambiguity to the
+  author rather than assuming.
 
   Spec organization: capabilities are "cakes", "coupons", and "orders". Each
   capability covers BOTH twins plus the shared contract scenarios; the twins
@@ -33,8 +36,9 @@ context: |
 
   Workflow: one change per slice, named slice-001-publish-browse-cakes,
   slice-002-validate-coupon, slice-003-place-order,
-  slice-004-notify-baker-over-rabbitmq, slice-005-pay-with-tendr. OpenSpec is adopted thin
-  here: task checklists and an archive trail, not re-planning.
+  slice-004-notify-baker-over-rabbitmq, slice-005-pay-with-tendr, and
+  slice-NNN-<name> for the next one. OpenSpec is adopted thin here: task
+  checklists and an archive trail, not re-planning.
 
 # Per-artifact rules.
 rules:
@@ -48,8 +52,8 @@ rules:
     - Create design.md only when the slice raises a genuine open question (e.g. slice 001's EF migrations vs. EnsureCreated decision). Otherwise skip it; the slice spec already is the design.
   tasks:
     - Order tasks per the charter's build discipline; before twin, after twin, shared contract scenarios, seeds, then verification.
-    - Every slice ends with the same two bookkeeping tasks; append the before twin's honest file list to docs/file-inventory.md, and record mid-build decisions in docs/build-log.md.
-    - Definition of done for the slice is the shared suite green on BOTH hosts (`dotnet test` with Docker running; the suite starts its own PostgreSQL and RabbitMQ through Testcontainers).
+    - Every slice ends with the same three bookkeeping tasks; append both twins' honest file lists and the whole-twin line counts to docs/file-inventory.md, record mid-build decisions in docs/build-log.md, and bring README.md and CLAUDE.md up to date wherever the slice moved the contract, a count, a command, a port, or a package.
+    - Definition of done for the slice is the shared suite green on BOTH hosts (`dotnet test` with Docker running; the suite starts its own PostgreSQL and RabbitMQ through Testcontainers, and its own Tendr per twin).
 
 # Per-operation guidance.
 operations:

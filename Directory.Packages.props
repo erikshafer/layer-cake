@@ -4,12 +4,14 @@
   </PropertyGroup>
   <!-- ============================================================
        VERSION FREEZE DISCIPLINE (see CLAUDE.md)
-       Pinned 2026-08-25 for the KCDC talk (Sept 10-11). Frozen before
-       dry-run 1. The only reason to bump after the freeze is a security
-       patch. Floors already satisfied: Marten >= 9.29.0 (silent commit
-       data-loss fixes on the write path), Wolverine >= 6.24.1 (durable
-       inbox data-loss fixes).
-       Do NOT adopt Alba 9 (beta, any-2xx assertion default) mid-prep.
+       Pinned 2026-08-25 for the KCDC talk (delivered 2026-09-10). Frozen
+       before dry-run 1, and still frozen between later runs of the talk so
+       the comparison never drifts under a package update. A security patch
+       justifies a bump; anything else is Erik's explicit call, recorded here
+       with its reason. Floors already satisfied: Marten >= 9.29.0 (silent
+       commit data-loss fixes on the write path), Wolverine >= 6.24.1
+       (durable inbox data-loss fixes).
+       Do NOT adopt Alba 9 (beta, any-2xx assertion default) without that call.
        ============================================================ -->
   <!-- After twin: Critter Stack 2026 line (Wolverine 6 / Marten 9) -->
   <ItemGroup>
